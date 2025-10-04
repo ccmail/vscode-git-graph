@@ -61,10 +61,16 @@ class Config {
 
 	/**
 	 * Get the UI language preference (auto | en | zh-CN).
+	 * Prefer the renamed setting `git-graph.language`, fallback to legacy `git-graph.uiLanguage`.
 	 */
 	get uiLanguage(): 'auto' | 'en' | 'zh-CN' {
-		const lang = this.config.get<string>('uiLanguage', 'auto');
-		return (lang === 'en' || lang.toLowerCase() === 'zh-cn') ? (lang === 'en' ? 'en' : 'zh-CN') : 'auto';
+		let lang = this.config.get<string>('language', 'auto');
+		if (lang === 'auto') {
+			// Fallback to legacy key if explicitly set
+			const legacy = this.config.get<string>('uiLanguage', 'auto');
+			if (legacy !== 'auto') lang = legacy;
+		}
+		return (lang === 'en' || (typeof lang === 'string' && lang.toLowerCase() === 'zh-cn')) ? (lang === 'en' ? 'en' : 'zh-CN') : 'auto';
 	}
 
 	/**

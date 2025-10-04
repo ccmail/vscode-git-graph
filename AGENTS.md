@@ -87,6 +87,12 @@
 - 侧栏图标：分支下拉可打开；眼睛图标可切换远程分支；其余图标正常；
 - 打包 VSIX 并可安装（`git-graph-*.vsix`）。
 
+### 会话收尾约定（重要）
+- 每次会话结束前，务必执行以下动作，便于干系人快速验证：
+  - 运行 `npm run lint -- --fix`（修复 CRLF 与其它风格问题），随后 `npm run compile` 确认可编译。
+  - 运行 `npm run package` 产出最新 VSIX（文件名形如 `git-graph-*.vsix`）。
+  - 如进行了批量脚本生成的中间文件，请在打包前清理（避免被打入 VSIX）。
+
 ### 常见坑位
 - 行尾与缩进：遵循 CRLF + Tab；若有 Lint 报警，执行 `npm run lint -- --fix`。
 - 侧栏布局：采用 fixed 贴边 + 内容边距策略，避免 Grid/float 误引入顶部空白。

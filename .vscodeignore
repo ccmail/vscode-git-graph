@@ -13,3 +13,4 @@ web/
 .eslintrc.json
 .gitignore
 jest.config.js
+tmp_settings_raw.json

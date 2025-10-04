@@ -54,7 +54,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.workspace.onDidChangeConfiguration((event) => {
 			if (event.affectsConfiguration('git-graph')) {
 				configurationEmitter.emit(event);
-				// If the UI language changed, refresh the Git Graph webview to apply it
+				// If the language changed, refresh the Git Graph webview to apply it
 				GitGraphView.onConfigurationChanged(event);
 			} else if (event.affectsConfiguration('git.path')) {
 				const paths = getConfig().gitPaths;

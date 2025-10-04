@@ -8,7 +8,7 @@ import { Logger } from './logger';
 import { RepoFileWatcher } from './repoFileWatcher';
 import { RepoManager } from './repoManager';
 import { GitGraphViewInitialState, TabIconColourTheme } from './types';
-import { UNABLE_TO_FIND_GIT_MSG, openExtensionSettings, openExternalUrl, openFile, showErrorMessage, viewScm, copyFilePathToClipboard, copyToClipboard, viewDiff, viewDiffWithWorkingFile, viewFileAtRevision } from './utils';
+import { UNABLE_TO_FIND_GIT_MSG, copyFilePathToClipboard, copyToClipboard, openExtensionSettings, openExternalUrl, openFile, showErrorMessage, viewDiff, viewDiffWithWorkingFile, viewFileAtRevision, viewScm } from './utils';
 import { standardiseCspSource } from './gitGraphView';
 import { Disposable } from './utils/disposable';
 

@@ -153,13 +153,13 @@ class SettingsWidget {
 
 			let html = '<div class="settingsSection general"><h3>' + t('常规') + '</h3>' +
 				'<table>' +
-				'<tr class="lineAbove"><td class="left">' + t('名称：') + '</td><td class="leftWithEllipsis" title="' + escapedRepoName + (this.repo.name === null ? '（来自文件系统的默认名称）' : '') + '">' + escapedRepoName + '</td><td class="btns right"><div id="editRepoName" title="' + t('编辑') + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div>' + (this.repo.name !== null ? ' <div id="deleteRepoName" title="' + t('移除') + ELLIPSIS + '">' + SVG_ICONS.close + '</div>' : '') + '</td></tr>' +
-				'<tr class="lineAbove lineBelow"><td class="left">' + t('初始分支：') + '</td><td class="leftWithEllipsis" title="' + initialBranchesStr + '（' + (initialBranchesLocallyConfigured ? '本地' : '全局') + '）">' + initialBranchesStr + '</td><td class="btns right"><div id="editInitialBranches" title="' + t('编辑') + t('初始分支：') + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div>' + (initialBranchesLocallyConfigured ? ' <div id="clearInitialBranches" title="' + t('是，清除') + ELLIPSIS + '">' + SVG_ICONS.close + '</div>' : '') + '</td></tr>' +
+				'<tr class="lineAbove"><td class="left">' + t('名称：') + '</td><td class="leftWithEllipsis" title="' + escapedRepoName + (this.repo.name === null ? tl(' (default from file system)', '（来自文件系统的默认名称）') : '') + '">' + escapedRepoName + '</td><td class="btns right"><div id="editRepoName" title="' + t('编辑') + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div>' + (this.repo.name !== null ? ' <div id="deleteRepoName" title="' + t('移除') + ELLIPSIS + '">' + SVG_ICONS.close + '</div>' : '') + '</td></tr>' +
+				'<tr class="lineAbove lineBelow"><td class="left">' + t('初始分支：') + '</td><td class="leftWithEllipsis" title="' + initialBranchesStr + tl(' (', '（') + (initialBranchesLocallyConfigured ? tl('Local', '本地') : tl('Global', '全局')) + tl(')', '）') + '">' + initialBranchesStr + '</td><td class="btns right"><div id="editInitialBranches" title="' + t('编辑') + t('初始分支：') + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div>' + (initialBranchesLocallyConfigured ? ' <div id="clearInitialBranches" title="' + t('是，清除') + ELLIPSIS + '">' + SVG_ICONS.close + '</div>' : '') + '</td></tr>' +
 				'</table>' +
 				'<label id="settingsShowStashes"><input type="checkbox" id="settingsShowStashesCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('显示贮藏(stash)') + '</label><br/>' +
 				'<label id="settingsShowTags"><input type="checkbox" id="settingsShowTagsCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('显示标签(tag)') + '</label><br/>' +
-				'<label id="settingsIncludeCommitsMentionedByReflogs"><input type="checkbox" id="settingsIncludeCommitsMentionedByReflogsCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('仅包含被引用日志(reflog)提及的提交') + '</label><span class="settingsWidgetInfo" title="仅在显示所有分支时生效。">' + SVG_ICONS.info + '</span><br/>' +
-				'<label id="settingsOnlyFollowFirstParent"><input type="checkbox" id="settingsOnlyFollowFirstParentCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('仅沿提交的第一个父节点(first parent)追踪') + '</label><span class="settingsWidgetInfo" title="在发现需要加载的提交时，只沿第一个父节点而非所有父节点追踪。">' + SVG_ICONS.info + '</span>' +
+				'<label id="settingsIncludeCommitsMentionedByReflogs"><input type="checkbox" id="settingsIncludeCommitsMentionedByReflogsCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('仅包含被引用日志(reflog)提及的提交') + '</label><span class="settingsWidgetInfo" title="' + tl('Only applies when showing all branches.', '仅在显示所有分支时生效。') + '">' + SVG_ICONS.info + '</span><br/>' +
+				'<label id="settingsOnlyFollowFirstParent"><input type="checkbox" id="settingsOnlyFollowFirstParentCheckbox" tabindex="-1"><span class="customCheckbox"></span>' + t('仅沿提交的第一个父节点(first parent)追踪') + '</label><span class="settingsWidgetInfo" title="' + tl('When discovering commits to load, follow only the first parent rather than all parents.', '在发现需要加载的提交时，只沿第一个父节点而非所有父节点追踪。') + '">' + SVG_ICONS.info + '</span>' +
 				'</div>';
 
 			let userNameSet = false, userEmailSet = false;
@@ -169,51 +169,52 @@ class SettingsWidget {
 				userNameSet = userName.local !== null || userName.global !== null;
 				userEmailSet = userEmail.local !== null || userEmail.global !== null;
 				if (userNameSet || userEmailSet) {
-					const escapedUserName = escapeHtml(userName.local ?? userName.global ?? '未设置');
-					const escapedUserEmail = escapeHtml(userEmail.local ?? userEmail.global ?? '未设置');
+					const escapedUserName = escapeHtml(userName.local ?? userName.global ?? tl('Not set', '未设置'));
+					const escapedUserEmail = escapeHtml(userEmail.local ?? userEmail.global ?? tl('Not set', '未设置'));
 					html += '<table>' +
-                        '<tr><td class="left">用户名：</td><td class="leftWithEllipsis" title="' + escapedUserName + (userNameSet ? ' (' + (userName.local !== null ? '本地' : '全局') + ')' : '') + '">' + escapedUserName + '</td></tr>' +
-                        '<tr><td class="left">用户邮箱：</td><td class="leftWithEllipsis" title="' + escapedUserEmail + (userEmailSet ? ' (' + (userEmail.local !== null ? '本地' : '全局') + ')' : '') + '">' + escapedUserEmail + '</td></tr>' +
+                        '<tr><td class="left">' + tl('User Name:', '用户名：') + '</td><td class="leftWithEllipsis" title="' + escapedUserName + (userNameSet ? ' (' + (userName.local !== null ? tl('Local', '本地') : tl('Global', '全局')) + ')' : '') + '">' + escapedUserName + '</td></tr>' +
+                        '<tr><td class="left">' + tl('User Email:', '用户邮箱：') + '</td><td class="leftWithEllipsis" title="' + escapedUserEmail + (userEmailSet ? ' (' + (userEmail.local !== null ? tl('Local', '本地') : tl('Global', '全局')) + ')' : '') + '">' + escapedUserEmail + '</td></tr>' +
                         '</table>' +
-                        '<div class="settingsSectionButtons"><div id="editUserDetails" class="editBtn">' + SVG_ICONS.pencil + '编辑</div><div id="removeUserDetails" class="removeBtn">' + SVG_ICONS.close + '移除</div></div>';
+                        '<div class="settingsSectionButtons"><div id="editUserDetails" class="editBtn">' + SVG_ICONS.pencil + tl('Edit', '编辑') + '</div><div id="removeUserDetails" class="removeBtn">' + SVG_ICONS.close + tl('Remove', '移除') + '</div></div>';
 				} else {
-					html += '<span>用户信息（如姓名与邮箱）用于 Git 记录提交对象的作者与提交者。</span>' +
-                        '<div class="settingsSectionButtons"><div id="editUserDetails" class="addBtn">' + SVG_ICONS.plus + '添加用户信息</div></div>';
+					html += '<span>' + tl('User details (e.g., name and email) are used by Git to record the author and committer of commits.', '用户信息（如姓名与邮箱）用于 Git 记录提交对象的作者与提交者。') + '</span>' +
+                        '<div class="settingsSectionButtons"><div id="editUserDetails" class="addBtn">' + SVG_ICONS.plus + tl('Add User Details', '添加用户信息') + '</div></div>';
 				}
 				html += '</div>';
 
-				html += '<div class="settingsSection"><h3>' + t('远程配置') + '</h3><table><tr><th>远程</th><th>URL</th><th>类型</th><th>操作</th></tr>';
+				html += '<div class="settingsSection"><h3>' + t('远程配置') + '</h3><table><tr><th>' + tl('Remote', '远程') + '</th><th>URL</th><th>' + tl('Type', '类型') + '</th><th>' + tl('Actions', '操作') + '</th></tr>';
 				if (this.config.remotes.length > 0) {
 					const hideRemotes = this.repo.hideRemotes;
 					this.config.remotes.forEach((remote, i) => {
 						const hidden = hideRemotes.includes(remote.name);
-						const fetchUrl = escapeHtml(remote.url || '未设置'), pushUrl = escapeHtml(remote.pushUrl || remote.url || '未设置');
+						const fetchUrl = escapeHtml(remote.url || tl('Not set', '未设置')),
+							pushUrl = escapeHtml(remote.pushUrl || remote.url || tl('Not set', '未设置'));
 						html += '<tr class="lineAbove">' +
-                            '<td class="left" rowspan="2"><span class="hideRemoteBtn" data-index="' + i + '" title="单击以' + (hidden ? '显示' : '隐藏') + '该远程的分支。">' + (hidden ? SVG_ICONS.eyeClosed : SVG_ICONS.eyeOpen) + '</span>' + escapeHtml(remote.name) + '</td>' +
-                            '<td class="leftWithEllipsis" title="获取 URL：' + fetchUrl + '">' + fetchUrl + '</td><td>获取(fetch)</td>' +
-                            '<td class="btns remoteBtns" rowspan="2" data-index="' + i + '"><div class="fetchRemote" title="从远程获取(fetch)' + ELLIPSIS + '">' + SVG_ICONS.download + '</div> <div class="pruneRemote" title="修剪远程(prune)' + ELLIPSIS + '">' + SVG_ICONS.branch + '</div><br><div class="editRemote" title="编辑远程' + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div> <div class="deleteRemote" title="删除远程' + ELLIPSIS + '">' + SVG_ICONS.close + '</div></td>' +
-                            '</tr><tr><td class="leftWithEllipsis" title="推送 URL：' + pushUrl + '">' + pushUrl + '</td><td>推送(push)</td></tr>';
+                            '<td class="left" rowspan="2"><span class="hideRemoteBtn" data-index="' + i + '" title="' + (hidden ? tl('Click to show branches of this remote.', '单击以显示该远程的分支。') : tl('Click to hide branches of this remote.', '单击以隐藏该远程的分支。')) + '">' + (hidden ? SVG_ICONS.eyeClosed : SVG_ICONS.eyeOpen) + '</span>' + escapeHtml(remote.name) + '</td>' +
+                            '<td class="leftWithEllipsis" title="' + tl('Fetch URL: ', '获取 URL：') + fetchUrl + '">' + fetchUrl + '</td><td>' + tl('Fetch', '获取(fetch)') + '</td>' +
+                            '<td class="btns remoteBtns" rowspan="2" data-index="' + i + '"><div class="fetchRemote" title="' + tl('Fetch from remote', '从远程获取(fetch)') + ELLIPSIS + '">' + SVG_ICONS.download + '</div> <div class="pruneRemote" title="' + tl('Prune remote', '修剪远程(prune)') + ELLIPSIS + '">' + SVG_ICONS.branch + '</div><br><div class="editRemote" title="' + tl('Edit Remote', '编辑远程') + ELLIPSIS + '">' + SVG_ICONS.pencil + '</div> <div class="deleteRemote" title="' + tl('Delete Remote', '删除远程') + ELLIPSIS + '">' + SVG_ICONS.close + '</div></td>' +
+                            '</tr><tr><td class="leftWithEllipsis" title="' + tl('Push URL: ', '推送 URL：') + pushUrl + '">' + pushUrl + '</td><td>' + tl('Push', '推送(push)') + '</td></tr>';
 					});
 				} else {
-					html += '<tr class="lineAbove"><td colspan="4">该仓库未配置任何远程。</td></tr>';
+					html += '<tr class="lineAbove"><td colspan="4">' + tl('No remotes are configured for this repository.', '该仓库未配置任何远程。') + '</td></tr>';
 				}
-				html += '</table><div class="settingsSectionButtons lineAbove"><div id="settingsAddRemote" class="addBtn">' + SVG_ICONS.plus + '添加远程</div></div></div>';
+				html += '</table><div class="settingsSectionButtons lineAbove"><div id="settingsAddRemote" class="addBtn">' + SVG_ICONS.plus + tl('Add Remote', '添加远程') + '</div></div></div>';
 			}
 
 			html += '<div class="settingsSection centered"><h3>' + t('Issue 链接') + '</h3>';
 			const issueLinkingConfig = this.repo.issueLinkingConfig || globalState.issueLinkingConfig;
 			if (issueLinkingConfig !== null) {
 				const escapedIssue = escapeHtml(issueLinkingConfig.issue), escapedUrl = escapeHtml(issueLinkingConfig.url);
-				html += '<table><tr><td class="left">Issue 正则：</td><td class="leftWithEllipsis" title="' + escapedIssue + '">' + escapedIssue + '</td></tr><tr><td class="left">Issue URL：</td><td class="leftWithEllipsis" title="' + escapedUrl + '">' + escapedUrl + '</td></tr></table>' +
-                        '<div class="settingsSectionButtons"><div id="editIssueLinking" class="editBtn">' + SVG_ICONS.pencil + '编辑</div><div id="removeIssueLinking" class="removeBtn">' + SVG_ICONS.close + '移除</div></div>';
+				html += '<table><tr><td class="left">' + tl('Issue Regex:', 'Issue 正则：') + '</td><td class="leftWithEllipsis" title="' + escapedIssue + '">' + escapedIssue + '</td></tr><tr><td class="left">' + tl('Issue URL:', 'Issue URL：') + '</td><td class="leftWithEllipsis" title="' + escapedUrl + '">' + escapedUrl + '</td></tr></table>' +
+                        '<div class="settingsSectionButtons"><div id="editIssueLinking" class="editBtn">' + SVG_ICONS.pencil + tl('Edit', '编辑') + '</div><div id="removeIssueLinking" class="removeBtn">' + SVG_ICONS.close + tl('Remove', '移除') + '</div></div>';
 			} else {
-				html += '<span>Issue 链接可将提交与标签消息中的 Issue 编号转换为超链接，并在你的问题跟踪系统中打开。如果分支名包含 Issue 编号，也可通过该分支的上下文菜单查看。</span>' +
-                        '<div class="settingsSectionButtons"><div id="editIssueLinking" class="addBtn">' + SVG_ICONS.plus + '添加 Issue 链接</div></div>';
+				html += '<span>' + tl('Issue Linking converts issue numbers in commit and tag messages into hyperlinks that open in your issue tracker. If a branch name contains an issue number, it can also be accessed via the branch context menu.', 'Issue 链接可将提交与标签消息中的 Issue 编号转换为超链接，并在你的问题跟踪系统中打开。如果分支名包含 Issue 编号，也可通过该分支的上下文菜单查看。') + '</span>' +
+                        '<div class="settingsSectionButtons"><div id="editIssueLinking" class="addBtn">' + SVG_ICONS.plus + tl('Add Issue Linking', '添加 Issue 链接') + '</div></div>';
 			}
 			html += '</div>';
 
 			if (this.config !== null) {
-				html += '<div class="settingsSection centered"><h3>' + t('Pull Request 创建') + '</h3>';
+				html += '<div class="settingsSection centered"><h3>' + tl('Pull Request Integration', 'Pull Request 创建') + '</h3>';
 				const pullRequestConfig = this.repo.pullRequestConfig;
 				if (pullRequestConfig !== null) {
 					const provider = escapeHtml((pullRequestConfig.provider === GG.PullRequestProvider.Bitbucket
@@ -227,14 +228,14 @@ class SettingsWidget {
 					const source = escapeHtml(pullRequestConfig.sourceOwner + '/' + pullRequestConfig.sourceRepo + ' (' + pullRequestConfig.sourceRemote + ')');
 					const destination = escapeHtml(pullRequestConfig.destOwner + '/' + pullRequestConfig.destRepo + (pullRequestConfig.destRemote !== null ? ' (' + pullRequestConfig.destRemote + ')' : ''));
 					const destinationBranch = escapeHtml(pullRequestConfig.destBranch);
-					html += '<table><tr><td class="left">提供者(Provider)：</td><td class="leftWithEllipsis" title="' + provider + '">' + provider + '</td></tr>' +
-                        '<tr><td class="left">源仓库：</td><td class="leftWithEllipsis" title="' + source + '">' + source + '</td></tr>' +
-                        '<tr><td class="left">目标仓库：</td><td class="leftWithEllipsis" title="' + destination + '">' + destination + '</td></tr>' +
-                        '<tr><td class="left">目标分支(branch)：</td><td class="leftWithEllipsis" title="' + destinationBranch + '">' + destinationBranch + '</td></tr></table>' +
-                        '<div class="settingsSectionButtons"><div id="editPullRequestIntegration" class="editBtn">' + SVG_ICONS.pencil + '编辑</div><div id="removePullRequestIntegration" class="removeBtn">' + SVG_ICONS.close + '移除</div></div>';
+					html += '<table><tr><td class="left">' + tl('Provider:', '提供者(Provider)：') + '</td><td class="leftWithEllipsis" title="' + provider + '">' + provider + '</td></tr>' +
+                        '<tr><td class="left">' + tl('Source Repository:', '源仓库：') + '</td><td class="leftWithEllipsis" title="' + source + '">' + source + '</td></tr>' +
+                        '<tr><td class="left">' + tl('Destination Repository:', '目标仓库：') + '</td><td class="leftWithEllipsis" title="' + destination + '">' + destination + '</td></tr>' +
+                        '<tr><td class="left">' + tl('Destination Branch:', '目标分支(branch)：') + '</td><td class="leftWithEllipsis" title="' + destinationBranch + '">' + destinationBranch + '</td></tr></table>' +
+                        '<div class="settingsSectionButtons"><div id="editPullRequestIntegration" class="editBtn">' + SVG_ICONS.pencil + tl('Edit', '编辑') + '</div><div id="removePullRequestIntegration" class="removeBtn">' + SVG_ICONS.close + tl('Remove', '移除') + '</div></div>';
 				} else {
-					html += '<span>“Pull Request 创建”可在分支的上下文菜单中直接打开并预填 Pull Request 表单。</span>' +
-                        '<div class="settingsSectionButtons"><div id="editPullRequestIntegration" class="addBtn">' + SVG_ICONS.plus + '配置“Pull Request 创建”集成</div></div>';
+					html += '<span>' + tl('Pull Request Creation allows opening a pre-filled Pull Request form from a branch context menu.', '“Pull Request 创建”可在分支的上下文菜单中直接打开并预填 Pull Request 表单。') + '</span>' +
+                        '<div class="settingsSectionButtons"><div id="editPullRequestIntegration" class="addBtn">' + SVG_ICONS.plus + tl('Configure Pull Request Integration', '配置“Pull Request 创建”集成') + '</div></div>';
 				}
 				html += '</div>';
 			}
@@ -661,25 +662,25 @@ class SettingsWidget {
 
 		let sourceRemoteOptions = this.config.remotes.map((remote, index) => ({ name: remote.name, value: index.toString() }));
 		let destRemoteOptions = sourceRemoteOptions.map((option) => option);
-		destRemoteOptions.push({ name: '无远程', value: '-1' });
+		destRemoteOptions.push({ name: tl('No Remote', '无远程'), value: '-1' });
 
-		dialog.showForm('配置“拉取请求创建”集成（步骤 1/2）', [
+		dialog.showForm(tl('Configure Pull Request Integration (Step 1/2)', '配置“拉取请求创建”集成（步骤 1/2）'), [
 			{
-				type: DialogInputType.Select, name: '提供者',
+				type: DialogInputType.Select, name: tl('Provider', '提供者'),
 				options: providerOptions, default: defaultProvider,
 				info: '除内置的公开托管提供者外，可通过扩展设置 "git-graph.customPullRequestProviders" 配置自定义提供者（适用于自建/私有平台）。'
 			},
 			{
-				type: DialogInputType.Select, name: '源远程',
+				type: DialogInputType.Select, name: tl('Source Remote', '源远程'),
 				options: sourceRemoteOptions, default: sourceRemoteIndex.toString(),
 				info: '与拉取请求来源对应的远程。'
 			},
 			{
-				type: DialogInputType.Select, name: '目标远程',
+				type: DialogInputType.Select, name: tl('Destination Remote', '目标远程'),
 				options: destRemoteOptions, default: destRemoteIndex.toString(),
 				info: '与拉取请求目标对应的远程。'
 			}
-		], '下一步', (values) => {
+		], tl('Next', '下一步'), (values) => {
 			if (this.config === null) return;
 
 			let newProvider = <GG.PullRequestProvider>parseInt(<string>values[0]);
@@ -791,10 +792,10 @@ class SettingsWidget {
 			}
 		);
 
-		dialog.showForm('配置“拉取请求创建”集成（步骤 2/2）', inputs, '保存配置', (values) => {
+		dialog.showForm(tl('Configure Pull Request Integration (Step 2/2)', '配置“拉取请求创建”集成（步骤 2/2）'), inputs, t('保存配置'), (values) => {
 			updateConfigWithFormValues(values);
 			this.setPullRequestConfig(config);
-		}, { type: TargetType.Repo }, '上一步', (values) => {
+		}, { type: TargetType.Repo }, tl('Back', '上一步'), (values) => {
 			updateConfigWithFormValues(values);
 			this.showCreatePullRequestIntegrationDialog1(config);
 		});

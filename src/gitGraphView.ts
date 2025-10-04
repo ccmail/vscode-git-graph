@@ -769,7 +769,7 @@ export class GitGraphView extends Disposable {
 	 * Handle configuration changes that affect the Webview UI, such as UI language.
 	 */
 	public static onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
-		if (event.affectsConfiguration('git-graph.uiLanguage') && GitGraphView.currentPanel && GitGraphView.currentPanel.panel.visible) {
+		if ((event.affectsConfiguration('git-graph.language') || event.affectsConfiguration('git-graph.uiLanguage')) && GitGraphView.currentPanel && GitGraphView.currentPanel.panel.visible) {
 			// Re-render the webview to apply the updated language preference
 			GitGraphView.currentPanel.update();
 		}
