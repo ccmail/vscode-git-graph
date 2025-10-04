@@ -34,7 +34,14 @@ class FindWidget {
 		this.view = view;
 		this.widgetElem = document.createElement('div');
 		this.widgetElem.className = 'findWidget';
-		this.widgetElem.innerHTML = '<input id="findInput" type="text" placeholder="Find" disabled/><span id="findCaseSensitive" class="findModifier" title="Match Case">Aa</span><span id="findRegex" class="findModifier" title="Use Regular Expression">.*</span><span id="findPosition"></span><span id="findPrev" title="Previous match (Shift+Enter)"></span><span id="findNext" title="Next match (Enter)"></span><span id="findOpenCdv" title="Open the Commit Details View for the current match"></span><span id="findClose" title="Close (Escape)"></span>';
+		this.widgetElem.innerHTML = '<input id="findInput" type="text" placeholder="' + t('查找') + '" disabled/>' +
+            '<span id="findCaseSensitive" class="findModifier" title="' + t('区分大小写') + '">Aa</span>' +
+            '<span id="findRegex" class="findModifier" title="' + t('使用正则表达式') + '">.*</span>' +
+            '<span id="findPosition"></span>' +
+            '<span id="findPrev" title="' + t('上一个匹配 (Shift+Enter)') + '"></span>' +
+            '<span id="findNext" title="' + t('下一个匹配 (Enter)') + '"></span>' +
+            '<span id="findOpenCdv" title="' + t('为当前匹配打开提交详情视图') + '"></span>' +
+            '<span id="findClose" title="' + t('关闭 (Esc)') + '"></span>';
 		document.body.appendChild(this.widgetElem);
 
 		this.inputElem = <HTMLInputElement>document.getElementById('findInput')!;

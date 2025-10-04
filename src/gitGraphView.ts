@@ -685,6 +685,7 @@ export class GitGraphView extends Disposable {
 				loadMoreCommits: config.loadMoreCommits,
 				loadMoreCommitsAutomatically: config.loadMoreCommitsAutomatically,
 				markdown: config.markdown,
+				uiLanguage: config.uiLanguage,
 				mute: config.muteCommits,
 				onlyFollowFirstParent: config.onlyFollowFirstParent,
 				onRepoLoad: config.onRepoLoad,
@@ -749,8 +750,9 @@ export class GitGraphView extends Disposable {
 		this.isGraphViewLoaded = numRepos > 0;
 		this.loadViewTo = null;
 
+		const htmlLang = initialState.config.uiLanguage === 'zh-CN' ? 'zh-CN' : 'en';
 		return `<!DOCTYPE html>
-		<html lang="en">
+		<html lang="${htmlLang}">
 			<head>
 				<meta charset="UTF-8">
 				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${standardiseCspSource(this.panel.webview.cspSource)} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src data:;">
@@ -761,6 +763,16 @@ export class GitGraphView extends Disposable {
 			</head>
 			${body}
 		</html>`;
+	}
+
+	/**
+	 * Handle configuration changes that affect the Webview UI, such as UI language.
+	 */
+	public static onConfigurationChanged(event: vscode.ConfigurationChangeEvent) {
+		if (event.affectsConfiguration('git-graph.uiLanguage') && GitGraphView.currentPanel && GitGraphView.currentPanel.panel.visible) {
+			// Re-render the webview to apply the updated language preference
+			GitGraphView.currentPanel.update();
+		}
 	}
 
 

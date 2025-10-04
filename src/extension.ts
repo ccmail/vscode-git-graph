@@ -8,6 +8,7 @@ import { ExtensionState } from './extensionState';
 import { onStartUp } from './life-cycle/startup';
 import { Logger } from './logger';
 import { RepoManager } from './repoManager';
+import { GitGraphView } from './gitGraphView';
 import { StatusBarItem } from './statusBarItem';
 import { GitExecutable, UNABLE_TO_FIND_GIT_MSG, findGit, getGitExecutableFromPaths, showErrorMessage, showInformationMessage } from './utils';
 import { EventEmitter } from './utils/event';
@@ -51,6 +52,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.workspace.onDidChangeConfiguration((event) => {
 			if (event.affectsConfiguration('git-graph')) {
 				configurationEmitter.emit(event);
+				// If the UI language changed, refresh the Git Graph webview to apply it
+				GitGraphView.onConfigurationChanged(event);
 			} else if (event.affectsConfiguration('git.path')) {
 				const paths = getConfig().gitPaths;
 				if (paths.length === 0) return;

@@ -1,0 +1,43 @@
+{
+  "git-graph.command.view": "查看 Git 图（git log）",
+  "git-graph.command.addGitRepository": "添加 Git 仓库...",
+  "git-graph.command.clearAvatarCache": "清除头像缓存",
+  "git-graph.command.endAllWorkspaceCodeReviews": "结束工作区中的所有代码评审",
+  "git-graph.command.endSpecificWorkspaceCodeReview": "结束工作区中的特定代码评审...",
+  "git-graph.command.fetch": "从远程获取",
+  "git-graph.command.removeGitRepository": "移除 Git 仓库...",
+  "git-graph.command.resumeWorkspaceCodeReview": "恢复工作区中的特定代码评审...",
+  "git-graph.command.version": "获取版本信息",
+  "git-graph.command.openFile": "打开文件",
+
+  "setting.keyboardShortcut.scrollToStash.description": "将视图滚动到第一个/下一个贮藏(stash)的快捷键。按住 Shift 可滚动到最后一个/上一个贮藏。",
+  "setting.markdown.description": "在提交消息与标签详情中解析并渲染常用的行内 Markdown 格式（粗体、斜体、粗斜体、行内代码）。",
+  "setting.maxDepthOfRepoSearch.description": "在工作区中发现仓库时，搜索子文件夹的最大深度。注意：搜索子文件夹时不会自动检测子仓库，但可通过命令面板运行“Git Graph: Add Git Repository”手动添加。",
+  "setting.uiLanguage.description": "Git Graph 界面语言：自动跟随 VS Code（auto）、英文（en）、简体中文（zh-CN）。该设置主要影响扩展内界面（Webview）；VS Code 设置页文本遵循 VS Code 的本地化机制。"
+  , "setting.commitDetailsView.autoCenter.description": "打开提交详情视图时自动居中。"
+  , "setting.commitDetailsView.fileTree.compactFolders.description": "在提交详情视图中以紧凑形式渲染文件树：仅含单个子文件夹的目录将折叠为一级元素。"
+  , "setting.commitDetailsView.fileView.type.enum.0": "以树形结构显示文件。"
+  , "setting.commitDetailsView.fileView.type.enum.1": "以列表显示文件（对于目录层级较深的仓库更有用）。"
+  , "setting.commitDetailsView.fileView.type.description": "设置提交详情视图中文件视图的默认类型。可在提交详情视图右侧的控件中按仓库覆盖。"
+  , "setting.commitDetailsView.location.enum.0": "在图与提交列表中内联显示提交详情视图。"
+  , "setting.commitDetailsView.location.enum.1": "在 Git Graph 视图底部停靠显示提交详情视图。"
+  , "setting.commitDetailsView.location.description": "指定在 Git Graph 视图中渲染提交详情视图的位置。"
+  , "setting.openNewTabEditorGroup.enum.0": "在当前编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.1": "在当前编辑器分组右侧打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.2": "在第 1 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.3": "在第 2 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.4": "在第 3 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.5": "在第 4 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.6": "在第 5 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.7": "在第 6 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.8": "在第 7 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.9": "在第 8 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.enum.10": "在第 9 个编辑器分组打开新标签。"
+  , "setting.openNewTabEditorGroup.description": "指定 Git Graph 在执行以下操作时新标签的打开分组：查看 Diff 视图、打开文件、查看特定版本的文件。"
+  , "setting.openToTheRepoOfTheActiveTextEditorDocument.description": "打开 Git Graph 视图并定位到包含当前活动文本编辑器文档的仓库。"
+  , "setting.referenceLabels.alignment.enum.0": "在“描述”列中，提交消息左侧显示分支与标签。"
+  , "setting.referenceLabels.alignment.enum.1": "在“描述”列中，提交消息左侧显示分支，右侧显示标签。"
+  , "setting.referenceLabels.alignment.enum.2": "在“图形”列中对齐显示分支，在“描述”列右侧显示标签。"
+  , "setting.referenceLabels.alignment.description": "指定每个提交的分支与标签引用标签的对齐方式。"
+  , "setting.viewLocation.description": "当调用 Git Graph 视图时显示位置：在编辑器页签（editor），或在底部面板（panel）。"
+}

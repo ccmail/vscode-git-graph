@@ -120,6 +120,10 @@ export class CommandManager extends Disposable {
 			loadRepo = this.repoManager.getRepoContainingFile(getPathFromUri(vscode.window.activeTextEditor.document.uri));
 		}
 
+		const cfg = getConfig();
+		if (cfg.viewLocation === 'panel') {
+			vscode.window.showInformationMessage('Panel view is not supported by this build of Git Graph. Opening in the editor instead.');
+		}
 		GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, loadRepo !== null ? { repo: loadRepo } : null);
 	}
 

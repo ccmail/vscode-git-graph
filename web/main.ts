@@ -146,20 +146,23 @@ class GitGraphView {
 		}
 
 		const fetchBtn = document.getElementById('fetchBtn')!, findBtn = document.getElementById('findBtn')!, settingsBtn = document.getElementById('settingsBtn')!, terminalBtn = document.getElementById('terminalBtn')!;
-		fetchBtn.title = 'Fetch' + (this.config.fetchAndPrune ? ' & Prune' : '') + ' from Remote(s)';
+		fetchBtn.title = t('从远程获取') + (this.config.fetchAndPrune ? t('并修剪') : '');
 		fetchBtn.innerHTML = SVG_ICONS.download;
 		fetchBtn.addEventListener('click', () => this.fetchFromRemotesAction());
 		findBtn.innerHTML = SVG_ICONS.search;
+		(findBtn as HTMLElement).title = t('查找');
 		findBtn.addEventListener('click', () => this.findWidget.show(true));
 		settingsBtn.innerHTML = SVG_ICONS.gear;
+		(settingsBtn as HTMLElement).title = t('仓库设置');
 		settingsBtn.addEventListener('click', () => this.settingsWidget.show(this.currentRepo));
 		terminalBtn.innerHTML = SVG_ICONS.terminal;
+		(terminalBtn as HTMLElement).title = t('打开该仓库的终端');
 		terminalBtn.addEventListener('click', () => {
 			runAction({
 				command: 'openTerminal',
 				repo: this.currentRepo,
 				name: this.gitRepos[this.currentRepo].name || getRepoName(this.currentRepo)
-			}, 'Opening Terminal');
+			}, '正在打开终端');
 		});
 	}
 
@@ -189,7 +192,7 @@ class GitGraphView {
 				this.loadViewTo = loadViewTo;
 			} else {
 				this.loadViewTo = null;
-				showErrorMessage('Unable to load the Git Graph View for the repository "' + loadViewTo.repo + '". It is not currently included in Git Graph.');
+				showErrorMessage(tl('Unable to load Git Graph for repository "' + loadViewTo.repo + '": The repository is not currently included in Git Graph.', '无法为仓库 "' + loadViewTo.repo + '" 加载 Git Graph 视图：该仓库当前未包含在 Git Graph 中。'));
 			}
 		} else {
 			this.loadViewTo = null;
@@ -255,7 +258,7 @@ class GitGraphView {
 			if (onRepoLoadShowSpecificBranches.length > 0) {
 				// Show specific branches if they exist in the repository
 				const globPatterns = this.config.customBranchGlobPatterns.map((pattern) => pattern.glob);
-				this.currentBranches.push(...onRepoLoadShowSpecificBranches.filter((branch) =>
+				this.currentBranches.push(...onRepoLoadShowSpecificBranches.filter((branch: string) =>
 					this.gitBranches.includes(branch) || globPatterns.includes(branch)
 				));
 			}
@@ -641,7 +644,7 @@ class GitGraphView {
 
 		this.renderRefreshButton();
 		if (this.commits.length === 0) {
-			this.tableElem.innerHTML = '<h2 id="loadingHeader">' + SVG_ICONS.loading + 'Loading ...</h2>';
+			this.tableElem.innerHTML = '<h2 id="loadingHeader">' + SVG_ICONS.loading + t('正在加载 ...') + '</h2>';
 		}
 
 		if (skipRepoInfo) {
@@ -818,10 +821,10 @@ class GitGraphView {
 			markdown: this.config.markdown
 		});
 
-		let html = '<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader" data-col="0">Graph</th><th class="tableColHeader" data-col="1">Description</th>' +
-			(colVisibility.date ? '<th class="tableColHeader dateCol" data-col="2">Date</th>' : '') +
-			(colVisibility.author ? '<th class="tableColHeader authorCol" data-col="3">Author</th>' : '') +
-			(colVisibility.commit ? '<th class="tableColHeader" data-col="4">Commit</th>' : '') +
+		let html = '<tr id="tableColHeaders"><th id="tableHeaderGraphCol" class="tableColHeader" data-col="0">' + t('图形') + '</th><th class="tableColHeader" data-col="1">' + t('描述') + '</th>' +
+			(colVisibility.date ? '<th class="tableColHeader dateCol" data-col="2">' + t('日期') + '</th>' : '') +
+			(colVisibility.author ? '<th class="tableColHeader authorCol" data-col="3">' + t('作者') + '</th>' : '') +
+			(colVisibility.commit ? '<th class="tableColHeader" data-col="4">' + t('提交') + '</th>' : '') +
 			'</tr>';
 
 		for (let i = 0; i < this.commits.length; i++) {
@@ -860,8 +863,8 @@ class GitGraphView {
 
 			const commitDot = commit.hash === this.commitHead
 				? '<span class="commitHeadDot" title="' + (branchCheckedOutAtCommit !== null
-					? 'The branch ' + escapeHtml('"' + branchCheckedOutAtCommit + '"') + ' is currently checked out at this commit'
-					: 'This commit is currently checked out'
+					? '分支 ' + escapeHtml('"' + branchCheckedOutAtCommit + '"') + ' 当前检出到该提交'
+					: '当前检出的是该提交'
 				) + '."></span>'
 				: '';
 
@@ -873,7 +876,7 @@ class GitGraphView {
 				'</tr>';
 		}
 		this.tableElem.innerHTML = '<table>' + html + '</table>';
-		this.footerElem.innerHTML = this.moreCommitsAvailable ? '<div id="loadMoreCommitsBtn" class="roundedBtn">Load More Commits</div>' : '';
+		this.footerElem.innerHTML = this.moreCommitsAvailable ? '<div id="loadMoreCommitsBtn" class="roundedBtn">' + t('加载更多提交') + '</div>' : '';
 		this.makeTableResizable();
 		this.findWidget.refresh();
 		this.renderedGitBranchHead = this.gitBranchHead;
@@ -973,57 +976,57 @@ class GitGraphView {
 		const isSelectedInBranchesDropdown = this.branchDropdown.isSelected(refName);
 		return [[
 			{
-				title: 'Checkout Branch',
+				title: t('Checkout Branch'),
 				visible: visibility.checkout && this.gitBranchHead !== refName,
 				onClick: () => this.checkoutBranchAction(refName, null, null, target)
 			}, {
-				title: 'Rename Branch' + ELLIPSIS,
+				title: t('Rename Branch') + ELLIPSIS,
 				visible: visibility.rename,
 				onClick: () => {
-					dialog.showRefInput('Enter the new name for branch <b><i>' + escapeHtml(refName) + '</i></b>:', refName, 'Rename Branch', (newName) => {
-						runAction({ command: 'renameBranch', repo: this.currentRepo, oldName: refName, newName: newName }, 'Renaming Branch');
+					dialog.showRefInput(tl('Enter the new name for branch <b><i>' + escapeHtml(refName) + '</i></b>:', '输入分支 <b><i>' + escapeHtml(refName) + '</i></b> 的新名称：'), refName, t('Rename Branch'), (newName) => {
+						runAction({ command: 'renameBranch', repo: this.currentRepo, oldName: refName, newName: newName }, '正在重命名分支');
 					}, target);
 				}
 			}, {
-				title: 'Delete Branch' + ELLIPSIS,
+				title: t('Delete Branch') + ELLIPSIS,
 				visible: visibility.delete && this.gitBranchHead !== refName,
 				onClick: () => {
 					let remotesWithBranch = this.gitRemotes.filter(remote => this.gitBranches.includes('remotes/' + remote + '/' + refName));
-					let inputs: DialogInput[] = [{ type: DialogInputType.Checkbox, name: 'Force Delete', value: this.config.dialogDefaults.deleteBranch.forceDelete }];
+					let inputs: DialogInput[] = [{ type: DialogInputType.Checkbox, name: tl('Force Delete', '强制删除'), value: this.config.dialogDefaults.deleteBranch.forceDelete }];
 					if (remotesWithBranch.length > 0) {
 						inputs.push({
 							type: DialogInputType.Checkbox,
-							name: 'Delete this branch on the remote' + (this.gitRemotes.length > 1 ? 's' : ''),
+							name: tl('Delete this branch on the remote' + (this.gitRemotes.length > 1 ? 's' : ''), '在远程上删除该分支'),
 							value: false,
-							info: 'This branch is on the remote' + (remotesWithBranch.length > 1 ? 's: ' : ' ') + formatCommaSeparatedList(remotesWithBranch.map((remote) => '"' + remote + '"'))
+							info: tl('This branch is on the remote' + (remotesWithBranch.length > 1 ? 's: ' : ' ') + formatCommaSeparatedList(remotesWithBranch.map((remote) => '"' + remote + '"')), '该分支存在于远程：' + formatCommaSeparatedList(remotesWithBranch.map((remote) => '"' + remote + '"')))
 						});
 					}
-					dialog.showForm('Are you sure you want to delete the branch <b><i>' + escapeHtml(refName) + '</i></b>?', inputs, 'Yes, delete', (values) => {
-						runAction({ command: 'deleteBranch', repo: this.currentRepo, branchName: refName, forceDelete: <boolean>values[0], deleteOnRemotes: remotesWithBranch.length > 0 && <boolean>values[1] ? remotesWithBranch : [] }, 'Deleting Branch');
+					dialog.showForm(tl('Are you sure you want to delete the branch <b><i>' + escapeHtml(refName) + '</i></b>?', '确定要删除分支 <b><i>' + escapeHtml(refName) + '</i></b> 吗？'), inputs, tl('Yes, delete', '是，删除'), (values) => {
+						runAction({ command: 'deleteBranch', repo: this.currentRepo, branchName: refName, forceDelete: <boolean>values[0], deleteOnRemotes: remotesWithBranch.length > 0 && <boolean>values[1] ? remotesWithBranch : [] }, '正在删除分支');
 					}, target);
 				}
 			}, {
-				title: 'Merge into current branch' + ELLIPSIS,
+				title: t('Merge into current branch') + ELLIPSIS,
 				visible: visibility.merge && this.gitBranchHead !== refName,
 				onClick: () => this.mergeAction(refName, refName, GG.MergeActionOn.Branch, target)
 			}, {
-				title: 'Rebase current branch on Branch' + ELLIPSIS,
+				title: t('Rebase current branch on Branch') + ELLIPSIS,
 				visible: visibility.rebase && this.gitBranchHead !== refName,
 				onClick: () => this.rebaseAction(refName, refName, GG.RebaseActionOn.Branch, target)
 			}, {
-				title: 'Push Branch' + ELLIPSIS,
+				title: t('Push Branch') + ELLIPSIS,
 				visible: visibility.push && this.gitRemotes.length > 0,
 				onClick: () => {
 					const multipleRemotes = this.gitRemotes.length > 1;
 					const inputs: DialogInput[] = [
-						{ type: DialogInputType.Checkbox, name: 'Set Upstream', value: true },
+						{ type: DialogInputType.Checkbox, name: tl('Set Upstream', '设置上游'), value: true },
 						{
 							type: DialogInputType.Radio,
-							name: 'Push Mode',
+							name: tl('Push Mode', '推送模式'),
 							options: [
-								{ name: 'Normal', value: GG.GitPushBranchMode.Normal },
-								{ name: 'Force With Lease', value: GG.GitPushBranchMode.ForceWithLease },
-								{ name: 'Force', value: GG.GitPushBranchMode.Force }
+								{ name: tl('Normal', '普通'), value: GG.GitPushBranchMode.Normal },
+								{ name: tl('Force With Lease', '强制（带租约）'), value: GG.GitPushBranchMode.ForceWithLease },
+								{ name: tl('Force', '强制'), value: GG.GitPushBranchMode.Force }
 							],
 							default: GG.GitPushBranchMode.Normal
 						}
@@ -1057,7 +1060,7 @@ class GitGraphView {
 		], [
 			this.getViewIssueAction(refName, visibility.viewIssue, target),
 			{
-				title: 'Create Pull Request' + ELLIPSIS,
+				title: t('Create Pull Request') + ELLIPSIS,
 				visible: visibility.createPullRequest && this.gitRepos[this.currentRepo].pullRequestConfig !== null,
 				onClick: () => {
 					const config = this.gitRepos[this.currentRepo].pullRequestConfig;
@@ -1069,25 +1072,25 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Create Archive',
+				title: t('Create Archive'),
 				visible: visibility.createArchive,
 				onClick: () => {
 					runAction({ command: 'createArchive', repo: this.currentRepo, ref: refName }, 'Creating Archive');
 				}
 			},
 			{
-				title: 'Select in Branches Dropdown',
+				title: t('Select in Branches Dropdown'),
 				visible: visibility.selectInBranchesDropdown && !isSelectedInBranchesDropdown,
 				onClick: () => this.branchDropdown.selectOption(refName)
 			},
 			{
-				title: 'Unselect in Branches Dropdown',
+				title: t('Unselect in Branches Dropdown'),
 				visible: visibility.unselectInBranchesDropdown && isSelectedInBranchesDropdown,
 				onClick: () => this.branchDropdown.unselectOption(refName)
 			}
 		], [
 			{
-				title: 'Copy Branch Name to Clipboard',
+				title: t('Copy Branch Name to Clipboard'),
 				visible: visibility.copyName,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Branch Name', data: refName });
@@ -1101,17 +1104,17 @@ class GitGraphView {
 		const commit = this.commits[this.commitLookup[hash]];
 		return [[
 			{
-				title: 'Add Tag' + ELLIPSIS,
+				title: tl('Add Tag', '添加标签(tag)') + ELLIPSIS,
 				visible: visibility.addTag,
 				onClick: () => this.addTagAction(hash, '', this.config.dialogDefaults.addTag.type, '', null, target)
 			}, {
-				title: 'Create Branch' + ELLIPSIS,
+				title: tl('Create Branch', '创建分支(branch)') + ELLIPSIS,
 				visible: visibility.createBranch,
 				onClick: () => this.createBranchAction(hash, '', this.config.dialogDefaults.createBranch.checkout, target)
 			}
 		], [
 			{
-				title: 'Checkout' + (globalState.alwaysAcceptCheckoutCommit ? '' : ELLIPSIS),
+				title: tl('Checkout', '检出(checkout)') + (globalState.alwaysAcceptCheckoutCommit ? '' : ELLIPSIS),
 				visible: visibility.checkout,
 				onClick: () => {
 					const checkoutCommit = () => runAction({ command: 'checkoutCommit', repo: this.currentRepo, commitHash: hash }, 'Checking out Commit');
@@ -1127,7 +1130,7 @@ class GitGraphView {
 					}
 				}
 			}, {
-				title: 'Cherry Pick' + ELLIPSIS,
+				title: tl('Cherry Pick', '拣选(cherry-pick)') + ELLIPSIS,
 				visible: visibility.cherrypick,
 				onClick: () => {
 					const isMerge = commit.parents.length > 1;
@@ -1170,7 +1173,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Revert' + ELLIPSIS,
+				title: tl('Revert', '还原(revert)') + ELLIPSIS,
 				visible: visibility.revert,
 				onClick: () => {
 					if (commit.parents.length > 1) {
@@ -1188,7 +1191,7 @@ class GitGraphView {
 					}
 				}
 			}, {
-				title: 'Drop' + ELLIPSIS,
+				title: tl('Drop', '丢弃(drop)') + ELLIPSIS,
 				visible: visibility.drop && this.graph.dropCommitPossible(this.commitLookup[hash]),
 				onClick: () => {
 					dialog.showConfirmation('Are you sure you want to permanently drop commit <b><i>' + abbrevCommit(hash) + '</i></b>?' + (this.onlyFollowFirstParent ? '<br/><i>Note: By enabling "Only follow the first parent of commits", some commits may have been hidden from the Git Graph View that could affect the outcome of performing this action.</i>' : ''), 'Yes, drop', () => {
@@ -1198,15 +1201,15 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Merge into current branch' + ELLIPSIS,
+				title: t('Merge into current branch') + ELLIPSIS,
 				visible: visibility.merge,
 				onClick: () => this.mergeAction(hash, abbrevCommit(hash), GG.MergeActionOn.Commit, target)
 			}, {
-				title: 'Rebase current branch on this Commit' + ELLIPSIS,
+				title: tl('Rebase current branch on this Commit', '变基(rebase)当前分支到此提交') + ELLIPSIS,
 				visible: visibility.rebase,
 				onClick: () => this.rebaseAction(hash, abbrevCommit(hash), GG.RebaseActionOn.Commit, target)
 			}, {
-				title: 'Reset current branch to this Commit' + ELLIPSIS,
+				title: tl('Reset current branch to this Commit', '重置(reset)当前分支到此提交') + ELLIPSIS,
 				visible: visibility.reset,
 				onClick: () => {
 					dialog.showSelect('Are you sure you want to reset ' + (this.gitBranchHead !== null ? '<b><i>' + escapeHtml(this.gitBranchHead) + '</i></b> (the current branch)' : 'the current branch') + ' to commit <b><i>' + abbrevCommit(hash) + '</i></b>?', this.config.dialogDefaults.resetCommit.mode, [
@@ -1220,14 +1223,14 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Copy Commit Hash to Clipboard',
+				title: t('Copy Commit Hash to Clipboard'),
 				visible: visibility.copyHash,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Commit Hash', data: hash });
 				}
 			},
 			{
-				title: 'Copy Commit Subject to Clipboard',
+				title: t('Copy Commit Subject to Clipboard'),
 				visible: visibility.copySubject,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Commit Subject', data: commit.message });
@@ -1243,11 +1246,11 @@ class GitGraphView {
 		const isSelectedInBranchesDropdown = this.branchDropdown.isSelected(prefixedRefName);
 		return [[
 			{
-				title: 'Checkout Branch' + ELLIPSIS,
+				title: t('Checkout Branch') + ELLIPSIS,
 				visible: visibility.checkout,
 				onClick: () => this.checkoutBranchAction(refName, remote, null, target)
 			}, {
-				title: 'Delete Remote Branch' + ELLIPSIS,
+				title: tl('Delete Remote Branch', '删除远程分支') + ELLIPSIS,
 				visible: visibility.delete && remote !== '',
 				onClick: () => {
 					dialog.showConfirmation('Are you sure you want to delete the remote branch <b><i>' + escapeHtml(refName) + '</i></b>?', 'Yes, delete', () => {
@@ -1255,7 +1258,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Fetch into local branch' + ELLIPSIS,
+				title: tl('Fetch into local branch', '获取(fetch)到本地分支') + ELLIPSIS,
 				visible: visibility.fetch && remote !== '' && this.gitBranches.includes(branchName) && this.gitBranchHead !== branchName,
 				onClick: () => {
 					dialog.showForm('Are you sure you want to fetch the remote branch <b><i>' + escapeHtml(refName) + '</i></b> into the local branch <b><i>' + escapeHtml(branchName) + '</i></b>?', [{
@@ -1268,11 +1271,11 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Merge into current branch' + ELLIPSIS,
+				title: tl('Merge into current branch', '合并(merge)到当前分支') + ELLIPSIS,
 				visible: visibility.merge,
 				onClick: () => this.mergeAction(refName, refName, GG.MergeActionOn.RemoteTrackingBranch, target)
 			}, {
-				title: 'Pull into current branch' + ELLIPSIS,
+				title: tl('Pull into current branch', '拉取(pull)到当前分支') + ELLIPSIS,
 				visible: visibility.pull && remote !== '',
 				onClick: () => {
 					dialog.showForm('Are you sure you want to pull the remote branch <b><i>' + escapeHtml(refName) + '</i></b> into ' + (this.gitBranchHead !== null ? '<b><i>' + escapeHtml(this.gitBranchHead) + '</i></b> (the current branch)' : 'the current branch') + '? If a merge is required:', [
@@ -1286,7 +1289,7 @@ class GitGraphView {
 		], [
 			this.getViewIssueAction(refName, visibility.viewIssue, target),
 			{
-				title: 'Create Pull Request',
+				title: tl('Create Pull Request', '创建 Pull Request'),
 				visible: visibility.createPullRequest && this.gitRepos[this.currentRepo].pullRequestConfig !== null && branchName !== 'HEAD' &&
 					(this.gitRepos[this.currentRepo].pullRequestConfig!.sourceRemote === remote || this.gitRepos[this.currentRepo].pullRequestConfig!.destRemote === remote),
 				onClick: () => {
@@ -1307,25 +1310,25 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Create Archive',
+				title: tl('Create Archive', '创建归档'),
 				visible: visibility.createArchive,
 				onClick: () => {
 					runAction({ command: 'createArchive', repo: this.currentRepo, ref: refName }, 'Creating Archive');
 				}
 			},
 			{
-				title: 'Select in Branches Dropdown',
+				title: t('Select in Branches Dropdown'),
 				visible: visibility.selectInBranchesDropdown && !isSelectedInBranchesDropdown,
 				onClick: () => this.branchDropdown.selectOption(prefixedRefName)
 			},
 			{
-				title: 'Unselect in Branches Dropdown',
+				title: t('Unselect in Branches Dropdown'),
 				visible: visibility.unselectInBranchesDropdown && isSelectedInBranchesDropdown,
 				onClick: () => this.branchDropdown.unselectOption(prefixedRefName)
 			}
 		], [
 			{
-				title: 'Copy Branch Name to Clipboard',
+				title: t('Copy Branch Name to Clipboard'),
 				visible: visibility.copyName,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Branch Name', data: refName });
@@ -1338,7 +1341,7 @@ class GitGraphView {
 		const hash = target.hash, selector = target.ref, visibility = this.config.contextMenuActionsVisibility.stash;
 		return [[
 			{
-				title: 'Apply Stash' + ELLIPSIS,
+				title: t('Apply Stash') + ELLIPSIS,
 				visible: visibility.apply,
 				onClick: () => {
 					dialog.showForm('Are you sure you want to apply the stash <b><i>' + escapeHtml(selector.substring(5)) + '</i></b>?', [{
@@ -1351,7 +1354,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Create Branch from Stash' + ELLIPSIS,
+				title: t('Create Branch from Stash') + ELLIPSIS,
 				visible: visibility.createBranch,
 				onClick: () => {
 					dialog.showRefInput('Create a branch from stash <b><i>' + escapeHtml(selector.substring(5)) + '</i></b> with the name:', '', 'Create Branch', (branchName) => {
@@ -1359,7 +1362,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Pop Stash' + ELLIPSIS,
+				title: t('Pop Stash') + ELLIPSIS,
 				visible: visibility.pop,
 				onClick: () => {
 					dialog.showForm('Are you sure you want to pop the stash <b><i>' + escapeHtml(selector.substring(5)) + '</i></b>?', [{
@@ -1372,7 +1375,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Drop Stash' + ELLIPSIS,
+				title: t('Drop Stash') + ELLIPSIS,
 				visible: visibility.drop,
 				onClick: () => {
 					dialog.showConfirmation('Are you sure you want to drop the stash <b><i>' + escapeHtml(selector.substring(5)) + '</i></b>?', 'Yes, drop', () => {
@@ -1382,13 +1385,13 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Copy Stash Name to Clipboard',
+				title: t('Copy Stash Name to Clipboard'),
 				visible: visibility.copyName,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Stash Name', data: selector });
 				}
 			}, {
-				title: 'Copy Stash Hash to Clipboard',
+				title: t('Copy Stash Hash to Clipboard'),
 				visible: visibility.copyHash,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Stash Hash', data: hash });
@@ -1401,13 +1404,13 @@ class GitGraphView {
 		const hash = target.hash, tagName = target.ref, visibility = this.config.contextMenuActionsVisibility.tag;
 		return [[
 			{
-				title: 'View Details',
+				title: t('View Details'),
 				visible: visibility.viewDetails && isAnnotated,
 				onClick: () => {
 					runAction({ command: 'tagDetails', repo: this.currentRepo, tagName: tagName, commitHash: hash }, 'Retrieving Tag Details');
 				}
 			}, {
-				title: 'Delete Tag' + ELLIPSIS,
+				title: t('Delete Tag') + ELLIPSIS,
 				visible: visibility.delete,
 				onClick: () => {
 					let message = 'Are you sure you want to delete the tag <b><i>' + escapeHtml(tagName) + '</i></b>?';
@@ -1428,7 +1431,7 @@ class GitGraphView {
 					}
 				}
 			}, {
-				title: 'Push Tag' + ELLIPSIS,
+				title: t('Push Tag') + ELLIPSIS,
 				visible: visibility.push && this.gitRemotes.length > 0,
 				onClick: () => {
 					const runPushTagAction = (remotes: string[]) => {
@@ -1457,14 +1460,14 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Create Archive',
+				title: tl('Create Archive', '创建归档'),
 				visible: visibility.createArchive,
 				onClick: () => {
 					runAction({ command: 'createArchive', repo: this.currentRepo, ref: tagName }, 'Creating Archive');
 				}
 			},
 			{
-				title: 'Copy Tag Name to Clipboard',
+				title: t('Copy Tag Name to Clipboard'),
 				visible: visibility.copyName,
 				onClick: () => {
 					sendMessage({ command: 'copyToClipboard', type: 'Tag Name', data: tagName });
@@ -1477,7 +1480,7 @@ class GitGraphView {
 		let visibility = this.config.contextMenuActionsVisibility.uncommittedChanges;
 		return [[
 			{
-				title: 'Stash uncommitted changes' + ELLIPSIS,
+				title: t('Stash uncommitted changes') + ELLIPSIS,
 				visible: visibility.stash,
 				onClick: () => {
 					dialog.showForm('Are you sure you want to stash the <b>uncommitted changes</b>?', [
@@ -1490,7 +1493,7 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Reset uncommitted changes' + ELLIPSIS,
+				title: t('Reset uncommitted changes') + ELLIPSIS,
 				visible: visibility.reset,
 				onClick: () => {
 					dialog.showSelect('Are you sure you want to reset the <b>uncommitted changes</b> to <b>HEAD</b>?', this.config.dialogDefaults.resetUncommitted.mode, [
@@ -1501,7 +1504,7 @@ class GitGraphView {
 					}, target);
 				}
 			}, {
-				title: 'Clean untracked files' + ELLIPSIS,
+				title: t('Clean untracked files') + ELLIPSIS,
 				visible: visibility.clean,
 				onClick: () => {
 					dialog.showCheckbox('Are you sure you want to clean all untracked files?', 'Clean untracked directories', true, 'Yes, clean', directories => {
@@ -1511,7 +1514,7 @@ class GitGraphView {
 			}
 		], [
 			{
-				title: 'Open Source Control View',
+				title: t('Open Source Control View'),
 				visible: visibility.openSourceControlView,
 				onClick: () => {
 					sendMessage({ command: 'viewScm' });
@@ -1536,7 +1539,7 @@ class GitGraphView {
 		}
 
 		return {
-			title: 'View Issue' + (issueLinks.length > 1 ? ELLIPSIS : ''),
+			title: tl('View Issue', '查看问题') + (issueLinks.length > 1 ? ELLIPSIS : ''),
 			visible: issueLinks.length > 0,
 			onClick: () => {
 				if (issueLinks.length > 1) {
@@ -1823,19 +1826,19 @@ class GitGraphView {
 			contextMenu.show([
 				[
 					{
-						title: 'Date',
+						title: t('日期'),
 						visible: true,
 						checked: columnWidths[2] !== COLUMN_HIDDEN,
 						onClick: () => toggleColumnState(2, 128)
 					},
 					{
-						title: 'Author',
+						title: t('作者'),
 						visible: true,
 						checked: columnWidths[3] !== COLUMN_HIDDEN,
 						onClick: () => toggleColumnState(3, 128)
 					},
 					{
-						title: 'Commit',
+						title: t('提交'),
 						visible: true,
 						checked: columnWidths[4] !== COLUMN_HIDDEN,
 						onClick: () => toggleColumnState(4, 80)
@@ -1843,19 +1846,19 @@ class GitGraphView {
 				],
 				[
 					{
-						title: 'Commit Timestamp Order',
+						title: tl('Commit Date Order', '提交时间顺序'),
 						visible: true,
 						checked: commitOrdering === GG.CommitOrdering.Date,
 						onClick: () => changeCommitOrdering(GG.RepoCommitOrdering.Date)
 					},
 					{
-						title: 'Author Timestamp Order',
+						title: tl('Author Date Order', '作者时间顺序'),
 						visible: true,
 						checked: commitOrdering === GG.CommitOrdering.AuthorDate,
 						onClick: () => changeCommitOrdering(GG.RepoCommitOrdering.AuthorDate)
 					},
 					{
-						title: 'Topological Order',
+						title: tl('Topological Order', '拓扑顺序'),
 						visible: true,
 						checked: commitOrdering === GG.CommitOrdering.Topological,
 						onClick: () => changeCommitOrdering(GG.RepoCommitOrdering.Topological)
@@ -1932,7 +1935,7 @@ class GitGraphView {
 	}
 
 	private loadMoreCommits() {
-		this.footerElem.innerHTML = '<h2 id="loadingHeader">' + SVG_ICONS.loading + 'Loading ...</h2>';
+		this.footerElem.innerHTML = '<h2 id="loadingHeader">' + SVG_ICONS.loading + t('正在加载 ...') + '</h2>';
 		this.maxCommits += this.config.loadMoreCommits;
 		this.saveState();
 		this.requestLoadRepoInfoAndCommits(false, true);
@@ -2170,19 +2173,19 @@ class GitGraphView {
 				contextMenu.show([
 					[
 						{
-							title: 'Open URL',
+							title: tl('Open URL', '打开 URL'),
 							visible: isExternalUrl,
 							onClick: () => {
 								sendMessage({ command: 'openExternalUrl', url: (<HTMLAnchorElement>eventTarget).href });
 							}
 						},
 						{
-							title: 'Follow Internal Link',
+							title: tl('Jump to Internal Link', '跳转到内部链接'),
 							visible: isInternalUrl,
 							onClick: () => followInternalLink(e)
 						},
 						{
-							title: 'Copy URL to Clipboard',
+							title: tl('Copy URL to Clipboard', '复制 URL 到剪贴板'),
 							visible: isExternalUrl,
 							onClick: () => {
 								sendMessage({ command: 'copyToClipboard', type: 'External URL', data: (<HTMLAnchorElement>eventTarget).href });
@@ -3046,53 +3049,53 @@ class GitGraphView {
 			contextMenu.show([
 				[
 					{
-						title: 'View Diff',
+						title: t('View Diff'),
 						visible: visibility.viewDiff && diffPossible,
 						onClick: () => triggerViewFileDiff(file, fileElem)
 					},
 					{
-						title: 'View File at this Revision',
+						title: t('View File at this Revision'),
 						visible: visibility.viewFileAtThisRevision && fileExistsAtThisRevisionAndDiffPossible,
 						onClick: () => triggerViewFileAtRevision(file, fileElem)
 					},
 					{
-						title: 'View Diff with Working File',
+						title: t('View Diff with Working File'),
 						visible: visibility.viewDiffWithWorkingFile && fileExistsAtThisRevisionAndDiffPossible,
 						onClick: () => triggerViewFileDiffWithWorkingFile(file, fileElem)
 					},
 					{
-						title: 'Open File',
+						title: t('Open File'),
 						visible: visibility.openFile && file.type !== GG.GitFileStatus.Deleted,
 						onClick: () => triggerOpenFile(file, fileElem)
 					}
 				],
 				[
 					{
-						title: 'Mark as Reviewed',
+						title: t('Mark as Reviewed'),
 						visible: visibility.markAsReviewed && codeReviewInProgressAndNotReviewed,
 						onClick: () => this.cdvUpdateFileState(file, fileElem, true, false)
 					},
 					{
-						title: 'Mark as Not Reviewed',
+						title: t('Mark as Not Reviewed'),
 						visible: visibility.markAsNotReviewed && expandedCommit.codeReview !== null && !codeReviewInProgressAndNotReviewed,
 						onClick: () => this.cdvUpdateFileState(file, fileElem, false, false)
 					}
 				],
 				[
 					{
-						title: 'Reset File to this Revision' + ELLIPSIS,
+						title: t('Reset File to this Revision') + ELLIPSIS,
 						visible: visibility.resetFileToThisRevision && fileExistsAtThisRevision && expandedCommit.compareWithHash === null,
 						onClick: () => triggerResetFileToRevision(file, fileElem)
 					}
 				],
 				[
 					{
-						title: 'Copy Absolute File Path to Clipboard',
+						title: t('Copy Absolute File Path to Clipboard'),
 						visible: visibility.copyAbsoluteFilePath,
 						onClick: () => triggerCopyFilePath(file, true)
 					},
 					{
-						title: 'Copy Relative File Path to Clipboard',
+						title: t('Copy Relative File Path to Clipboard'),
 						visible: visibility.copyRelativeFilePath,
 						onClick: () => triggerCopyFilePath(file, false)
 					}
@@ -3586,18 +3589,18 @@ function generateFileTreeLeafHtml(name: string, leaf: FileTreeLeaf, gitFiles: Re
 		const textFile = fileTreeFile.additions !== null && fileTreeFile.deletions !== null;
 		const diffPossible = fileTreeFile.type === GG.GitFileStatus.Untracked || textFile;
 		const changeTypeMessage = GIT_FILE_CHANGE_TYPES[fileTreeFile.type] + (fileTreeFile.type === GG.GitFileStatus.Renamed ? ' (' + escapeHtml(fileTreeFile.oldFilePath) + ' → ' + escapeHtml(fileTreeFile.newFilePath) + ')' : '');
-		return '<li data-pathseg="' + encodedName + '"><span class="fileTreeFileRecord' + (leaf.index === fileContextMenuOpen ? ' ' + CLASS_CONTEXT_MENU_ACTIVE : '') + '" data-index="' + leaf.index + '"><span class="fileTreeFile' + (diffPossible ? ' gitDiffPossible' : '') + (leaf.reviewed ? '' : ' ' + CLASS_PENDING_REVIEW) + '" title="' + (diffPossible ? 'Click to View Diff' : 'Unable to View Diff' + (fileTreeFile.type !== GG.GitFileStatus.Deleted ? ' (this is a binary file)' : '')) + ' • ' + changeTypeMessage + '"><span class="fileTreeFileIcon">' + SVG_ICONS.file + '</span><span class="gitFileName ' + fileTreeFile.type + '">' + escapedName + '</span></span>' +
+		return '<li data-pathseg="' + encodedName + '"><span class="fileTreeFileRecord' + (leaf.index === fileContextMenuOpen ? ' ' + CLASS_CONTEXT_MENU_ACTIVE : '') + '" data-index="' + leaf.index + '"><span class="fileTreeFile' + (diffPossible ? ' gitDiffPossible' : '') + (leaf.reviewed ? '' : ' ' + CLASS_PENDING_REVIEW) + '" title="' + (diffPossible ? t('Click to View Diff') : t('Unable to View Diff') + (fileTreeFile.type !== GG.GitFileStatus.Deleted ? tl(' (this is a binary file)', '（该文件为二进制文件）') : '')) + ' • ' + changeTypeMessage + '"><span class="fileTreeFileIcon">' + SVG_ICONS.file + '</span><span class="gitFileName ' + fileTreeFile.type + '">' + escapedName + '</span></span>' +
 			(initialState.config.enhancedAccessibility ? '<span class="fileTreeFileType" title="' + changeTypeMessage + '">' + fileTreeFile.type + '</span>' : '') +
-			(fileTreeFile.type !== GG.GitFileStatus.Added && fileTreeFile.type !== GG.GitFileStatus.Untracked && fileTreeFile.type !== GG.GitFileStatus.Deleted && textFile ? '<span class="fileTreeFileAddDel">(<span class="fileTreeFileAdd" title="' + fileTreeFile.additions + ' addition' + (fileTreeFile.additions !== 1 ? 's' : '') + '">+' + fileTreeFile.additions + '</span>|<span class="fileTreeFileDel" title="' + fileTreeFile.deletions + ' deletion' + (fileTreeFile.deletions !== 1 ? 's' : '') + '">-' + fileTreeFile.deletions + '</span>)</span>' : '') +
-			(fileTreeFile.newFilePath === lastViewedFile ? '<span id="cdvLastFileViewed" title="Last File Viewed">' + SVG_ICONS.eyeOpen + '</span>' : '') +
-			'<span class="copyGitFile fileTreeFileAction" title="Copy Absolute File Path to Clipboard">' + SVG_ICONS.copy + '</span>' +
+            (fileTreeFile.type !== GG.GitFileStatus.Added && fileTreeFile.type !== GG.GitFileStatus.Untracked && fileTreeFile.type !== GG.GitFileStatus.Deleted && textFile ? '<span class="fileTreeFileAddDel">(<span class="fileTreeFileAdd" title="' + fileTreeFile.additions + tl(' addition' + (fileTreeFile.additions !== 1 ? 's' : ''), ' 次新增') + '">+' + fileTreeFile.additions + '</span>|<span class="fileTreeFileDel" title="' + fileTreeFile.deletions + tl(' deletion' + (fileTreeFile.deletions !== 1 ? 's' : ''), ' 次删除') + '">-' + fileTreeFile.deletions + '</span>)</span>' : '') +
+            (fileTreeFile.newFilePath === lastViewedFile ? '<span id="cdvLastFileViewed" title="' + tl('Last File Viewed', '最近查看的文件') + '">' + SVG_ICONS.eyeOpen + '</span>' : '') +
+            '<span class="copyGitFile fileTreeFileAction" title="' + t('Copy Absolute File Path to Clipboard') + '">' + SVG_ICONS.copy + '</span>' +
 			(fileTreeFile.type !== GG.GitFileStatus.Deleted
-				? (diffPossible && !isUncommitted ? '<span class="viewGitFileAtRevision fileTreeFileAction" title="View File at this Revision">' + SVG_ICONS.commit + '</span>' : '') +
-				'<span class="openGitFile fileTreeFileAction" title="Open File">' + SVG_ICONS.openFile + '</span>'
+				? (diffPossible && !isUncommitted ? '<span class="viewGitFileAtRevision fileTreeFileAction" title="' + t('View File at this Revision') + '">' + SVG_ICONS.commit + '</span>' : '') +
+                '<span class="openGitFile fileTreeFileAction" title="' + t('Open File') + '">' + SVG_ICONS.openFile + '</span>'
 				: ''
 			) + '</span></li>';
 	} else {
-		return '<li data-pathseg="' + encodedName + '"><span class="fileTreeRepo" data-path="' + encodeURIComponent(leaf.path) + '" title="Click to View Repository"><span class="fileTreeRepoIcon">' + SVG_ICONS.closedFolder + '</span>' + escapedName + '</span></li>';
+		return '<li data-pathseg="' + encodedName + '"><span class="fileTreeRepo" data-path="' + encodeURIComponent(leaf.path) + '" title="单击查看仓库"><span class="fileTreeRepoIcon">' + SVG_ICONS.closedFolder + '</span>' + escapedName + '</span></li>';
 	}
 }
 

@@ -60,6 +60,22 @@ class Config {
 	}
 
 	/**
+	 * Get the UI language preference (auto | en | zh-CN).
+	 */
+	get uiLanguage(): 'auto' | 'en' | 'zh-CN' {
+		const lang = this.config.get<string>('uiLanguage', 'auto');
+		return (lang === 'en' || lang.toLowerCase() === 'zh-cn') ? (lang === 'en' ? 'en' : 'zh-CN') : 'auto';
+	}
+
+	/**
+	 * Get where to open the Git Graph View (editor | panel).
+	 */
+	get viewLocation(): 'editor' | 'panel' {
+		const loc = this.config.get<string>('viewLocation', 'editor');
+		return loc === 'panel' ? 'panel' : 'editor';
+	}
+
+	/**
 	 * Get the Commit Details View configuration from the Extension Settings.
 	 */
 	get commitDetailsView(): CommitDetailsViewConfig {

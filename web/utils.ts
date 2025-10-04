@@ -358,6 +358,121 @@ function insertAfter(newNode: HTMLElement, referenceNode: HTMLElement) {
 	referenceNode.parentNode!.insertBefore(newNode, referenceNode.nextSibling);
 }
 
+// --- Lightweight i18n helper ---
+function detectLang(): 'en' | 'zh-CN' {
+	const pref = initialState && initialState.config && initialState.config.uiLanguage ? initialState.config.uiLanguage : 'auto';
+	if (pref === 'en' || pref === 'zh-CN') return pref;
+	try {
+		const nav = (window.navigator && (navigator as any).language) || 'en';
+		return /^en/i.test(nav) ? 'en' : 'zh-CN';
+	} catch {
+		return 'zh-CN';
+	}
+}
+const UI_LANG: 'en' | 'zh-CN' = detectLang();
+const I18N: { [key: string]: { en: string; zh: string } } = {
+	'仓库设置': { en: 'Repository Settings', zh: '仓库设置' },
+	'常规': { en: 'General', zh: '常规' },
+	'名称：': { en: 'Name:', zh: '名称：' },
+	'初始分支：': { en: 'Initial Branches:', zh: '初始分支：' },
+	'显示贮藏(stash)': { en: 'Show Stashes (stash)', zh: '显示贮藏(stash)' },
+	'显示标签(tag)': { en: 'Show Tags (tag)', zh: '显示标签(tag)' },
+	'仅包含被引用日志(reflog)提及的提交': { en: 'Include commits mentioned by reflog only', zh: '仅包含被引用日志(reflog)提及的提交' },
+	'仅沿提交的第一个父节点(first parent)追踪': { en: 'Only follow the first parent', zh: '仅沿提交的第一个父节点(first parent)追踪' },
+	'用户信息': { en: 'User Details', zh: '用户信息' },
+	'远程配置': { en: 'Remote Configuration', zh: '远程配置' },
+	'Issue 链接': { en: 'Issue Linking', zh: 'Issue 链接' },
+	'Pull Request 创建': { en: 'Pull Request Creation', zh: 'Pull Request 创建' },
+	'Git Graph 配置': { en: 'Git Graph Configuration', zh: 'Git Graph 配置' },
+	'编辑': { en: 'Edit', zh: '编辑' },
+	'移除': { en: 'Remove', zh: '移除' },
+	'添加': { en: 'Add', zh: '添加' },
+	'保存配置': { en: 'Save Configuration', zh: '保存配置' },
+	'取消': { en: 'Cancel', zh: '取消' },
+	'是，删除': { en: 'Yes, delete', zh: '是，删除' },
+	'是，清除': { en: 'Yes, clear', zh: '是，清除' },
+	'打开 Git Graph 扩展设置': { en: 'Open Git Graph Extension Settings', zh: '打开 Git Graph 扩展设置' },
+	'导出仓库配置': { en: 'Export Repository Configuration', zh: '导出仓库配置' },
+	'正在加载 ...': { en: 'Loading ...', zh: '正在加载 ...' },
+	'图形': { en: 'Graph', zh: '图形' },
+	'描述': { en: 'Description', zh: '描述' },
+	'日期': { en: 'Date', zh: '日期' },
+	'作者': { en: 'Author', zh: '作者' },
+	'提交': { en: 'Commit', zh: '提交' },
+	'加载更多提交': { en: 'Load More Commits', zh: '加载更多提交' },
+	'查找': { en: 'Find', zh: '查找' },
+	'打开该仓库的终端': { en: 'Open a Terminal for this Repository', zh: '打开该仓库的终端' },
+	'从远程获取': { en: 'Fetch from Remote(s)', zh: '从远程获取' },
+	'并修剪': { en: ' & Prune', zh: '并修剪' },
+	'关闭': { en: 'Close', zh: '关闭' },
+	'错误：': { en: 'Error: ', zh: '错误：' },
+	'区分大小写': { en: 'Match Case', zh: '区分大小写' },
+	'使用正则表达式': { en: 'Use Regular Expression', zh: '使用正则表达式' },
+	'上一个匹配 (Shift+Enter)': { en: 'Previous match (Shift+Enter)', zh: '上一个匹配 (Shift+Enter)' },
+	'下一个匹配 (Enter)': { en: 'Next match (Enter)', zh: '下一个匹配 (Enter)' },
+	'为当前匹配打开提交详情视图': { en: 'Open the Commit Details View for the current match', zh: '为当前匹配打开提交详情视图' },
+	'关闭 (Esc)': { en: 'Close (Escape)', zh: '关闭 (Esc)' },
+	// Context menu & common actions
+	'Checkout Branch': { en: 'Checkout Branch', zh: '检出(checkout) 分支' },
+	'Rename Branch': { en: 'Rename Branch', zh: '重命名分支' },
+	'Delete Branch': { en: 'Delete Branch', zh: '删除分支' },
+	'Merge into current branch': { en: 'Merge into current branch', zh: '合并(merge)到当前分支' },
+	'Rebase current branch on Branch': { en: 'Rebase current branch on Branch', zh: '变基(rebase)当前分支到该分支' },
+	'Push Branch': { en: 'Push Branch', zh: '推送(push)分支' },
+	'Create Pull Request': { en: 'Create Pull Request', zh: '创建 Pull Request' },
+	'Create Archive': { en: 'Create Archive', zh: '创建归档' },
+	'Select in Branches Dropdown': { en: 'Select in Branches Dropdown', zh: '在分支下拉中选择' },
+	'Unselect in Branches Dropdown': { en: 'Unselect in Branches Dropdown', zh: '在分支下拉中取消选择' },
+	'Copy Branch Name to Clipboard': { en: 'Copy Branch Name to Clipboard', zh: '复制分支名到剪贴板' },
+	'Add Tag': { en: 'Add Tag', zh: '添加标签(tag)' },
+	'Create Branch': { en: 'Create Branch', zh: '创建分支(branch)' },
+	'Checkout': { en: 'Checkout', zh: '检出(checkout)' },
+	'Cherry Pick': { en: 'Cherry Pick', zh: '拣选(cherry-pick)' },
+	'Revert': { en: 'Revert', zh: '还原(revert)' },
+	'Drop': { en: 'Drop', zh: '丢弃(drop)' },
+	'Rebase current branch on this Commit': { en: 'Rebase current branch on this Commit', zh: '变基(rebase)当前分支到此提交' },
+	'Reset current branch to this Commit': { en: 'Reset current branch to this Commit', zh: '重置(reset)当前分支到此提交' },
+	'Copy Commit Hash to Clipboard': { en: 'Copy Commit Hash to Clipboard', zh: '复制提交哈希到剪贴板' },
+	'Copy Commit Subject to Clipboard': { en: 'Copy Commit Subject to Clipboard', zh: '复制提交标题到剪贴板' },
+	'Delete Remote Branch': { en: 'Delete Remote Branch', zh: '删除远程分支' },
+	'Fetch into local branch': { en: 'Fetch into local branch', zh: '获取(fetch)到本地分支' },
+	'Pull into current branch': { en: 'Pull into current branch', zh: '拉取(pull)到当前分支' },
+	'Apply Stash': { en: 'Apply Stash', zh: '应用贮藏(stash)' },
+	'Create Branch from Stash': { en: 'Create Branch from Stash', zh: '从贮藏(stash)创建分支' },
+	'Pop Stash': { en: 'Pop Stash', zh: '弹出贮藏(stash)' },
+	'Drop Stash': { en: 'Drop Stash', zh: '丢弃贮藏(stash)' },
+	'View Details': { en: 'View Details', zh: '查看详情' },
+	'Delete Tag': { en: 'Delete Tag', zh: '删除标签' },
+	'Push Tag': { en: 'Push Tag', zh: '推送标签' },
+	'Copy Tag Name to Clipboard': { en: 'Copy Tag Name to Clipboard', zh: '复制标签名称到剪贴板' },
+	'Stash uncommitted changes': { en: 'Stash uncommitted changes', zh: '贮藏未提交的更改' },
+	'Reset uncommitted changes': { en: 'Reset uncommitted changes', zh: '重置未提交的更改' },
+	'Clean untracked files': { en: 'Clean untracked files', zh: '清理未跟踪的文件' },
+	'Open Source Control View': { en: 'Open Source Control View', zh: '打开源代码管理视图' },
+	// File actions
+	'View Diff': { en: 'View Diff', zh: '查看差异' },
+	'View File at this Revision': { en: 'View File at this Revision', zh: '查看该版本的文件' },
+	'View Diff with Working File': { en: 'View Diff with Working File', zh: '与工作区文件比较差异' },
+	'Open File': { en: 'Open File', zh: '打开文件' },
+	'Mark as Reviewed': { en: 'Mark as Reviewed', zh: '标记为已评审' },
+	'Mark as Not Reviewed': { en: 'Mark as Not Reviewed', zh: '标记为未评审' },
+	'Reset File to this Revision': { en: 'Reset File to this Revision', zh: '将文件重置到该版本' },
+	'Copy Absolute File Path to Clipboard': { en: 'Copy Absolute File Path to Clipboard', zh: '复制绝对路径到剪贴板' },
+	'Copy Relative File Path to Clipboard': { en: 'Copy Relative File Path to Clipboard', zh: '复制相对路径到剪贴板' },
+	'Click to View Diff': { en: 'Click to View Diff', zh: '单击查看差异' },
+	'Unable to View Diff': { en: 'Unable to View Diff', zh: '无法查看差异' }
+};
+function t(text: string) {
+	const item = I18N[text];
+	if (!item) return text;
+	return UI_LANG === 'en' ? item.en : item.zh;
+}
+
+// Return en or zh based on current UI language
+function tl(en: string, zh: string) {
+	return UI_LANG === 'en' ? en : zh;
+}
+
 /**
  * Insert an HTML Element directly before the first child element with a specified class name.
  * @param newChild The HTML Element to insert.
