@@ -18,6 +18,17 @@
 - 打包 VSIX：`npm run package` | 打包并安装：`npm run package-and-install`
 - 本地调试：在 VS Code 中按 F5 启动扩展宿主。
 
+## 编译与运行（快速指引）
+- 版本要求：VS Code ≥ `1.50.0`（面板模式依赖 WebviewView API）。
+- 第一次拉取仓库后：先执行 `npm install`，随后 `npm run compile`。
+- 常用分步编译：
+  - 仅后端（扩展主进程）：`npm run compile-src`
+  - 仅前端（Webview）：`npm run compile-web`（或 `npm run compile-web-debug`）
+- 调试运行：VS Code 中按 F5，选择“Run Extension”。
+- 打包分发：`npm run package` 生成 `*.vsix`，或用 `npm run package-and-install` 本机安装验证。
+
+提示：如本地改动造成 Lint 报错（特别是行尾/缩进），请确保使用 CRLF 行尾与 Tab 缩进，并可运行：`npm run lint -- --fix`。
+
 ## 代码风格与命名约定
 - 统一使用 TypeScript；制表符缩进；单引号；分号；1TBS 花括号；CRLF 换行。
 - 命名：类用 `StrictPascalCase`，函数用 `camelCase`。

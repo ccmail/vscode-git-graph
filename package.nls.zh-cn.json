@@ -9,6 +9,7 @@
   "git-graph.command.resumeWorkspaceCodeReview": "恢复工作区中的特定代码评审...",
   "git-graph.command.version": "获取版本信息",
   "git-graph.command.openFile": "打开文件",
+  "git-graph.command.openRepoTerminal": "打开 Git Graph 终端",
 
   "setting.keyboardShortcut.scrollToStash.description": "将视图滚动到第一个/下一个贮藏(stash)的快捷键。按住 Shift 可滚动到最后一个/上一个贮藏。",
   "setting.markdown.description": "在提交消息与标签详情中解析并渲染常用的行内 Markdown 格式（粗体、斜体、粗斜体、行内代码）。",
@@ -40,4 +41,8 @@
   , "setting.referenceLabels.alignment.enum.2": "在“图形”列中对齐显示分支，在“描述”列右侧显示标签。"
   , "setting.referenceLabels.alignment.description": "指定每个提交的分支与标签引用标签的对齐方式。"
   , "setting.viewLocation.description": "当调用 Git Graph 视图时显示位置：在编辑器页签（editor），或在底部面板（panel）。"
+  , "setting.panel.controlsPosition.description": "在 Panel 模式下控制栏的位置：上方、左侧或右侧（默认右侧）。"
+  , "setting.panel.controlsPosition.enum.0": "将控制栏显示在上方。"
+  , "setting.panel.controlsPosition.enum.1": "将控制栏显示在左侧。"
+  , "setting.panel.controlsPosition.enum.2": "将控制栏显示在右侧。"
 }

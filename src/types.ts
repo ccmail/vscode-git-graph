@@ -254,6 +254,7 @@ export interface GitGraphViewConfig {
 	readonly markdown: boolean;
 	readonly viewLocation?: 'editor' | 'panel';
 	readonly uiLanguage?: 'auto' | 'en' | 'zh-CN';
+	readonly panelControlsPosition?: 'top' | 'left' | 'right';
 	readonly mute: MuteCommitsConfig;
 	readonly onlyFollowFirstParent: boolean;
 	readonly onRepoLoad: OnRepoLoadConfig;

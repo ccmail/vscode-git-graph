@@ -44,7 +44,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	const avatarManager = new AvatarManager(dataSource, extensionState, logger);
 	const repoManager = new RepoManager(dataSource, extensionState, onDidChangeConfiguration, logger);
 	const statusBarItem = new StatusBarItem(repoManager.getNumRepos(), repoManager.onDidChangeRepos, onDidChangeConfiguration, logger);
-	const commandManager = new CommandManager(context, avatarManager, dataSource, extensionState, repoManager, gitExecutable, onDidChangeGitExecutable, logger);
+	const panelProvider = new GitGraphPanelViewProvider(context.extensionPath, dataSource, extensionState, avatarManager, repoManager, logger);
+	context.subscriptions.push(vscode.window.registerWebviewViewProvider('git-graph.viewPanel', panelProvider));
+	const commandManager = new CommandManager(context, avatarManager, dataSource, extensionState, repoManager, gitExecutable, onDidChangeGitExecutable, logger, panelProvider);
 	const diffDocProvider = new DiffDocProvider(dataSource);
 
 	context.subscriptions.push(
@@ -92,3 +94,4 @@ export async function activate(context: vscode.ExtensionContext) {
  * Deactivate Git Graph.
  */
 export function deactivate() { }
+import { GitGraphPanelViewProvider } from './gitGraphPanelView';

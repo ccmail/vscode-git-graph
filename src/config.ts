@@ -76,6 +76,23 @@ class Config {
 	}
 
 	/**
+	 * Get the value of the `git-graph.panel.controlsPosition` Extension Setting.
+	 * Only affects the Panel Webview layout (not the Editor layout).
+	 */
+	get panelControlsPosition(): 'top' | 'left' | 'right' {
+		const pos = this.config.get<string>('panel.controlsPosition', 'Right');
+		if (typeof pos === 'string') {
+			switch (pos) {
+				case 'Top': return 'top';
+				case 'Left': return 'left';
+				case 'Right': return 'right';
+				default: return 'right';
+			}
+		}
+		return 'right';
+	}
+
+	/**
 	 * Get the Commit Details View configuration from the Extension Settings.
 	 */
 	get commitDetailsView(): CommitDetailsViewConfig {

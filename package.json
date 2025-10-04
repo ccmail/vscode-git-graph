@@ -1,7 +1,7 @@
 {
 	"name": "git-graph",
 	"displayName": "Git Graph",
-	"version": "1.30.0",
+    "version": "1.30.1",
 	"publisher": "mhutchie",
 	"author": {
 		"name": "Michael Hutchison",
@@ -40,8 +40,24 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-		"viewsContainers": {},
-		"views": {},
+		"viewsContainers": {
+			"panel": [
+				{
+					"id": "git-graph-panel",
+					"title": "Git Graph",
+					"icon": "resources/webview-icon.svg"
+				}
+			]
+		},
+		"views": {
+			"git-graph-panel": [
+				{
+					"type": "webview",
+					"id": "git-graph.viewPanel",
+					"name": "Git Graph"
+				}
+			]
+		},
 		"commands": [
             {
                 "category": "Git Graph",
@@ -51,6 +67,11 @@
                     "light": "resources/cmd-icon-light.svg",
                     "dark": "resources/cmd-icon-dark.svg"
                 }
+            },
+            {
+                "category": "Git Graph",
+                "command": "git-graph.openRepoTerminal",
+                "title": "%git-graph.command.openRepoTerminal%"
             },
             {
                 "category": "Git Graph",
@@ -104,6 +125,17 @@
 			"type": "object",
 			"title": "Git Graph",
 			"properties": {
+                "git-graph.panel.controlsPosition": {
+                    "type": "string",
+                    "enum": ["Top", "Left", "Right"],
+                    "enumDescriptions": [
+                        "%setting.panel.controlsPosition.enum.0%",
+                        "%setting.panel.controlsPosition.enum.1%",
+                        "%setting.panel.controlsPosition.enum.2%"
+                    ],
+                    "default": "Right",
+                    "description": "%setting.panel.controlsPosition.description%"
+                },
                 "git-graph.viewLocation": {
                     "type": "string",
                     "enum": ["editor", "panel"],

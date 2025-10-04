@@ -53,6 +53,7 @@ class GitGraphView {
 	private readonly showRemoteBranchesElem: HTMLInputElement;
 	private readonly refreshBtnElem: HTMLElement;
 	private readonly scrollShadowElem: HTMLElement;
+	private readonly sideControlsLayout: boolean;
 
 	constructor(viewElem: HTMLElement, prevState: WebViewState | null) {
 		this.gitRepos = initialState.repos;
@@ -78,6 +79,9 @@ class GitGraphView {
 		viewElem.focus();
 
 		this.graph = new Graph('commitGraph', viewElem, this.config.graph, this.config.mute);
+
+		// Detect side controls layout (panel left/right) to adjust scroll calculations
+		this.sideControlsLayout = document.body.classList.contains('controlsSideLeft') || document.body.classList.contains('controlsSideRight');
 
 		this.repoDropdown = new Dropdown('repoDropdown', true, false, 'Repos', (values) => {
 			this.loadRepo(values[0]);
@@ -146,6 +150,8 @@ class GitGraphView {
 		}
 
 		const fetchBtn = document.getElementById('fetchBtn')!, findBtn = document.getElementById('findBtn')!, settingsBtn = document.getElementById('settingsBtn')!, terminalBtn = document.getElementById('terminalBtn')!;
+		const branchesBtn = document.getElementById('branchesBtn');
+		const remoteToggleBtn = document.getElementById('remoteToggleBtn');
 		fetchBtn.title = t('从远程获取') + (this.config.fetchAndPrune ? t('并修剪') : '');
 		fetchBtn.innerHTML = SVG_ICONS.download;
 		fetchBtn.addEventListener('click', () => this.fetchFromRemotesAction());
@@ -164,6 +170,28 @@ class GitGraphView {
 				name: this.gitRepos[this.currentRepo].name || getRepoName(this.currentRepo)
 			}, '正在打开终端');
 		});
+
+		// Side controls (panel layout): optional buttons
+		if (branchesBtn) {
+			branchesBtn.innerHTML = SVG_ICONS.branch;
+			(branchesBtn as HTMLElement).title = t('分支');
+			branchesBtn.addEventListener('click', () => {
+				const cur = document.querySelector('#branchDropdown .dropdownCurrentValue') as HTMLElement | null;
+				if (cur) cur.click();
+			});
+		}
+		if (remoteToggleBtn) {
+			const renderRemoteIcon = () => {
+				remoteToggleBtn!.innerHTML = this.showRemoteBranchesElem.checked ? SVG_ICONS.eyeOpen : SVG_ICONS.eyeClosed;
+				(remoteToggleBtn as HTMLElement).title = this.showRemoteBranchesElem.checked ? t('显示远程分支') : t('隐藏远程分支');
+			};
+			renderRemoteIcon();
+			remoteToggleBtn.addEventListener('click', () => {
+				this.showRemoteBranchesElem.click();
+				renderRemoteIcon();
+			});
+			this.showRemoteBranchesElem.addEventListener('change', renderRemoteIcon);
+		}
 	}
 
 
@@ -1921,9 +1949,9 @@ class GitGraphView {
 		const elem = findCommitElemWithId(getCommitElems(), this.getCommitId(hash));
 		if (elem === null) return;
 
-		let elemTop = this.controlsElem.clientHeight + elem.offsetTop;
+		let elemTop = this.getControlsHeight() + elem.offsetTop;
 		if (alwaysCenterCommit || elemTop - 8 < this.viewElem.scrollTop || elemTop + 32 - this.viewElem.clientHeight > this.viewElem.scrollTop) {
-			this.viewElem.scroll(0, this.controlsElem.clientHeight + elem.offsetTop + 12 - this.viewElem.clientHeight / 2);
+			this.viewElem.scroll(0, this.getControlsHeight() + elem.offsetTop + 12 - this.viewElem.clientHeight / 2);
 		}
 
 		if (flash && !elem.classList.contains('flash')) {
@@ -2023,6 +2051,10 @@ class GitGraphView {
 				timeout = null;
 			}, 250);
 		});
+	}
+
+	private getControlsHeight() {
+		return this.sideControlsLayout ? 0 : this.controlsElem.clientHeight;
 	}
 
 	private observeKeyboardEvents() {
@@ -2590,7 +2622,7 @@ class GitGraphView {
 
 		if (!refresh) {
 			if (isDocked) {
-				let elemTop = this.controlsElem.clientHeight + expandedCommit.commitElem.offsetTop;
+				let elemTop = this.getControlsHeight() + expandedCommit.commitElem.offsetTop;
 				if (elemTop - 8 < this.viewElem.scrollTop) {
 					// Commit is above what is visible on screen
 					this.viewElem.scroll(0, elemTop - 8);
@@ -2599,7 +2631,7 @@ class GitGraphView {
 					this.viewElem.scroll(0, elemTop - this.viewElem.clientHeight + 32);
 				}
 			} else {
-				let elemTop = this.controlsElem.clientHeight + elem.offsetTop, cdvHeight = this.gitRepos[this.currentRepo].cdvHeight;
+				let elemTop = this.getControlsHeight() + elem.offsetTop, cdvHeight = this.gitRepos[this.currentRepo].cdvHeight;
 				if (this.config.commitDetailsView.autoCenter) {
 					// Center Commit Detail View setting is enabled
 					// elemTop - commit height [24px] + (commit details view height + commit height [24px]) / 2 - (view height) / 2

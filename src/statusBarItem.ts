@@ -11,6 +11,7 @@ import { Event } from './utils/event';
 export class StatusBarItem extends Disposable {
 	private readonly logger: Logger;
 	private readonly statusBarItem: vscode.StatusBarItem;
+	private readonly terminalItem: vscode.StatusBarItem;
 	private isVisible: boolean = false;
 	private numRepos: number = 0;
 
@@ -29,6 +30,12 @@ export class StatusBarItem extends Disposable {
 		statusBarItem.command = 'git-graph.view';
 		this.statusBarItem = statusBarItem;
 
+		const terminalItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
+		terminalItem.text = '$(terminal)';
+		terminalItem.tooltip = 'Open Git Graph Terminal';
+		terminalItem.command = 'git-graph.openRepoTerminal';
+		this.terminalItem = terminalItem;
+
 		this.registerDisposables(
 			onDidChangeRepos((event) => {
 				this.setNumRepos(event.numRepos);
@@ -38,7 +45,8 @@ export class StatusBarItem extends Disposable {
 					this.refresh();
 				}
 			}),
-			statusBarItem
+			statusBarItem,
+			terminalItem
 		);
 
 		this.setNumRepos(initialNumRepos);
@@ -61,9 +69,11 @@ export class StatusBarItem extends Disposable {
 		if (this.isVisible !== shouldBeVisible) {
 			if (shouldBeVisible) {
 				this.statusBarItem.show();
+				this.terminalItem.show();
 				this.logger.log('Showing "Git Graph" Status Bar Item');
 			} else {
 				this.statusBarItem.hide();
+				this.terminalItem.hide();
 				this.logger.log('Hiding "Git Graph" Status Bar Item');
 			}
 			this.isVisible = shouldBeVisible;

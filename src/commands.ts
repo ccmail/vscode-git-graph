@@ -23,6 +23,7 @@ export class CommandManager extends Disposable {
 	private readonly logger: Logger;
 	private readonly repoManager: RepoManager;
 	private gitExecutable: GitExecutable | null;
+	private panelProvider: { setLoadViewTo: (repo: string | null) => void } | null = null;
 
 	/**
 	 * Creates the Git Graph Command Manager.
@@ -35,7 +36,7 @@ export class CommandManager extends Disposable {
 	 * @param onDidChangeGitExecutable The Event emitting the Git executable for Git Graph to use.
 	 * @param logger The Git Graph Logger instance.
 	 */
-	constructor(context: vscode.ExtensionContext, avatarManger: AvatarManager, dataSource: DataSource, extensionState: ExtensionState, repoManager: RepoManager, gitExecutable: GitExecutable | null, onDidChangeGitExecutable: Event<GitExecutable>, logger: Logger) {
+	constructor(context: vscode.ExtensionContext, avatarManger: AvatarManager, dataSource: DataSource, extensionState: ExtensionState, repoManager: RepoManager, gitExecutable: GitExecutable | null, onDidChangeGitExecutable: Event<GitExecutable>, logger: Logger, panelProvider?: { setLoadViewTo: (repo: string | null) => void }) {
 		super();
 		this.context = context;
 		this.avatarManager = avatarManger;
@@ -44,9 +45,11 @@ export class CommandManager extends Disposable {
 		this.logger = logger;
 		this.repoManager = repoManager;
 		this.gitExecutable = gitExecutable;
+		this.panelProvider = panelProvider || null;
 
 		// Register Extension Commands
 		this.registerCommand('git-graph.view', (arg) => this.view(arg));
+		this.registerCommand('git-graph.openRepoTerminal', () => this.openRepoTerminal());
 		this.registerCommand('git-graph.addGitRepository', () => this.addGitRepository());
 		this.registerCommand('git-graph.removeGitRepository', () => this.removeGitRepository());
 		this.registerCommand('git-graph.clearAvatarCache', () => this.clearAvatarCache());
@@ -122,9 +125,54 @@ export class CommandManager extends Disposable {
 
 		const cfg = getConfig();
 		if (cfg.viewLocation === 'panel') {
-			vscode.window.showInformationMessage('Panel view is not supported by this build of Git Graph. Opening in the editor instead.');
+			try { this.panelProvider?.setLoadViewTo(loadRepo); } catch (_) { }
+			vscode.commands.executeCommand('git-graph.viewPanel.focus');
+		} else {
+			GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, loadRepo !== null ? { repo: loadRepo } : null);
 		}
-		GitGraphView.createOrShow(this.context.extensionPath, this.dataSource, this.extensionState, this.avatarManager, this.repoManager, this.logger, loadRepo !== null ? { repo: loadRepo } : null);
+	}
+
+	/**
+	 * The method run when the `git-graph.openRepoTerminal` command is invoked.
+	 * Opens an integrated terminal for the selected / last active repository.
+	 */
+	private async openRepoTerminal() {
+		const repos = this.repoManager.getRepos();
+		const repoPaths = getSortedRepositoryPaths(repos, getConfig().repoDropdownOrder);
+
+		const openTerminalFor = async (repo: string) => {
+			const name = repos[repo].name || getRepoName(repo);
+			await this.dataSource.openGitTerminal(repo, null, 'Git Graph: ' + name);
+		};
+
+		if (repoPaths.length > 1) {
+			const items: vscode.QuickPickItem[] = repoPaths.map((path) => ({
+				label: repos[path].name || getRepoName(path),
+				description: path
+			}));
+
+			const lastActiveRepo = this.extensionState.getLastActiveRepo();
+			if (lastActiveRepo !== null) {
+				let idx = items.findIndex((item) => item.description === lastActiveRepo);
+				if (idx > -1) {
+					const item = items.splice(idx, 1)[0];
+					items.unshift(item);
+				}
+			}
+
+			vscode.window.showQuickPick(items, {
+				placeHolder: 'Select a repository to open a terminal for',
+				canPickMany: false
+			}).then((item) => {
+				if (item && item.description) openTerminalFor(item.description);
+			}, () => {
+				showErrorMessage('An unexpected error occurred while running the command "Open Git Graph Terminal".');
+			});
+		} else if (repoPaths.length === 1) {
+			openTerminalFor(repoPaths[0]);
+		} else {
+			showInformationMessage('No Git repositories were found in the current workspace.');
+		}
 	}
 
 	/**
