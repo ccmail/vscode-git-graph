@@ -282,6 +282,12 @@ class GitGraphView {
 
 		// Changes to these properties must be indicated as a repository info change
 		this.gitBranches = branchOptions;
+		// 维护用于分支面板的完整分支列表（包含远程），不受“隐藏远程分支”影响
+		(this as any).gitBranchesAll = (this as any).gitBranchesAll || [];
+		const all = (this as any).gitBranchesAll as string[];
+		for (let i = 0; i < branchOptions.length; i++) {
+			if (all.indexOf(branchOptions[i]) === -1) all.push(branchOptions[i]);
+		}
 		this.gitBranchHead = branchHead;
 		this.gitRemotes = remotes;
 
@@ -575,12 +581,30 @@ class GitGraphView {
 		return this.gitBranches;
 	}
 
+	public getBranchesForPanel(): ReadonlyArray<string> {
+		const all = (this as any).gitBranchesAll as string[] | undefined;
+		return all && all.length > 0 ? all : this.gitBranches;
+	}
+
+	public getCurrentBranchesSelection(): ReadonlyArray<string> | null {
+		return this.currentBranches;
+	}
+
 	public getBranchHead(): string | null {
 		return this.gitBranchHead;
 	}
 
 	public closeBranchesPanel() {
 		if (this.branchesWidget.isVisible()) this.branchesWidget.close();
+	}
+
+	public applyBranchSelection(selection: ReadonlyArray<string>) {
+		this.currentBranches = selection as string[];
+		this.maxCommits = this.config.initialLoadCommits;
+		this.saveState();
+		this.clearCommits();
+		this.branchDropdown.setOptions(this.getBranchOptions(true), this.currentBranches);
+		this.requestLoadRepoInfoAndCommits(true, true);
 	}
 
 	public getBranchOptions(includeShowAll?: boolean): ReadonlyArray<DialogSelectInputOption> {
@@ -1156,6 +1180,21 @@ class GitGraphView {
 							willUpdateBranchConfig: setUpstream && remotes.length > 0 && (this.gitConfig === null || typeof this.gitConfig.branches[refName] === 'undefined' || this.gitConfig.branches[refName].remote !== remotes[remotes.length - 1])
 						}, 'Pushing Branch');
 					}, target);
+				}
+			}, {
+				title: tl('Quick Push (include selected commit)', '推送此前提交(含选中commit)'),
+				visible: visibility.push && this.gitRemotes.length > 0,
+				onClick: () => {
+					const remote = this.getPushRemote(refName);
+					runAction({
+						command: 'pushBranch',
+						repo: this.currentRepo,
+						branchName: refName,
+						remotes: [remote],
+						setUpstream: true,
+						mode: GG.GitPushBranchMode.Normal,
+						willUpdateBranchConfig: true
+					}, 'Pushing Branch');
 				}
 			}
 		], [
@@ -2361,23 +2400,45 @@ class GitGraphView {
 				if (commit === null) return;
 
 				if (eventElem.classList.contains(CLASS_REF_HEAD) || eventElem.classList.contains(CLASS_REF_REMOTE)) {
-					let sourceElem = <HTMLElement>eventElem.children[1];
-					let refName = unescapeHtml(eventElem.dataset.name!), isHead = eventElem.classList.contains(CLASS_REF_HEAD), isRemoteCombinedWithHead = eventTarget.classList.contains('gitRefHeadRemote');
+					// 改为：双击切换左侧提交列表显示的分支/全部（保持右键菜单不变，单击不变）
+					let refName = unescapeHtml(eventElem.dataset.name!);
+					let isHead = eventElem.classList.contains(CLASS_REF_HEAD);
+					const isRemoteCombinedWithHead = eventTarget.classList.contains('gitRefHeadRemote');
 					if (isHead && isRemoteCombinedWithHead) {
-						refName = unescapeHtml((<HTMLElement>eventTarget).dataset.fullref!);
-						sourceElem = <HTMLElement>eventTarget;
+						refName = unescapeHtml((<HTMLElement>eventTarget).dataset.fullref!); // 形如 "origin/branch"
 						isHead = false;
 					}
 
-					const target: ContextMenuTarget & DialogTarget & RefTarget = {
-						type: TargetType.Ref,
-						hash: commit.hash,
-						index: parseInt(commitElem.dataset.id!),
-						ref: refName,
-						elem: sourceElem
-					};
+					// 计算基础分支名与应包含的远程跟踪分支（当用户未覆盖远程分支显示设置时）
+					let baseBranch: string;
+					let candidateRemotes: string[] = [];
+					if (isHead) {
+						baseBranch = refName;
+					} else {
+						// 远程分支名形如 "origin/branch"
+						const slash = refName.indexOf('/');
+						baseBranch = slash > -1 ? refName.substring(slash + 1) : refName;
+					}
+					if (this.gitRepos[this.currentRepo].showRemoteBranchesV2 === GG.BooleanOverride.Default) {
+						// 包含所有存在同名远程分支的远程（origin/upstream...）
+						candidateRemotes = this.gitRemotes.filter((remote) => this.gitBranches.includes('remotes/' + remote + '/' + baseBranch));
+					}
 
-					this.checkoutBranchAction(refName, isHead ? null : unescapeHtml((isRemoteCombinedWithHead ? <HTMLElement>eventTarget : eventElem).dataset.remote!), null, target);
+					// 目标选择：仅在本地存在该分支时包含本地分支，外加（可选）对应远程跟踪分支
+					const includeLocal = this.gitBranches.includes(baseBranch);
+					const targetSelection = (includeLocal ? [baseBranch] : []).concat(candidateRemotes.map((r) => 'remotes/' + r + '/' + baseBranch));
+					let useShowAll = false;
+					if (this.currentBranches !== null && this.currentBranches.length === targetSelection.length) {
+						useShowAll = targetSelection.every((v) => this.currentBranches!.includes(v));
+					}
+
+					// 应用选择并触发刷新，同时更新下拉选择的 UI
+					this.currentBranches = useShowAll ? [SHOW_ALL_BRANCHES] : targetSelection;
+					this.maxCommits = this.config.initialLoadCommits;
+					this.saveState();
+					this.clearCommits();
+					this.branchDropdown.setOptions(this.getBranchOptions(true), this.currentBranches);
+					this.requestLoadRepoInfoAndCommits(true, true);
 				}
 			}
 		});

@@ -153,7 +153,7 @@ class BranchesWidget {
 
 	private render() {
 		if (this.currentRepo === null) return;
-		const branches = this.view.getBranches();
+		const branches = (this.view as any).getBranchesForPanel ? (this.view as any).getBranchesForPanel() as string[] : this.view.getBranches();
 		const config = this.view.getRepoConfig();
 
 		// Partition local and remote branches
@@ -196,30 +196,40 @@ class BranchesWidget {
 					const full = node.full || name;
 					const datasetRemote = remoteName ? ' data-remote="' + escapeHtml(remoteName) + '"' : '';
 					const title = remoteName ? escapeHtml(remoteName + '/' + full) : escapeHtml(full);
-					return '<div class="branchLeaf" data-branch="' + escapeHtml(full) + '"' + datasetRemote + ' title="' + title + '" style="padding-left:' + indent + 'px">' + SVG_ICONS.branch + '<span class="branchName">' + escapeHtml(name) + '</span></div>';
+					const headBranch = head;
+					const headRemote = headBranch && config && (config as any).branches && (config as any).branches[headBranch]
+						? (config as any).branches[headBranch].remote as string | null
+						: null;
+					const isHeadLeaf = !!headBranch && ((!remoteName && full === headBranch) || (remoteName !== null && full === headBranch && headRemote === remoteName));
+					const HEAD_STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"><path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.401 8.168L12 18.896l-7.335 3.869 1.401-8.168L.132 9.21l8.2-1.192z"></path></svg>';
+					const iconHtml = isHeadLeaf ? '<span class="headStarIcon">' + HEAD_STAR_SVG + '</span>' : '<span class="branchIcon">' + SVG_ICONS.branch + '</span>';
+					const nameHtml = '<span class="branchName">' + escapeHtml(name) + '</span>';
+					const suffix = isHeadLeaf ? ' <span class="headLabel">(HEAD)</span>' : '';
+					return '<div class="branchLeaf" data-branch="' + escapeHtml(full) + '"' + datasetRemote + ' title="' + title + '" style="padding-left:' + indent + 'px">' + iconHtml + nameHtml + suffix + '</div>';
 				}
 			};
 			return Object.keys(root.children).sort().map((k) => renderNode(k, root.children[k], 0)).join('');
 		};
 
 		let html = '';
-		// Head section
 		const head = this.view.getBranchHead();
-		html += '<div class="branchesSection"><h3>HEAD' + (head ? ' (' + t('当前分支') + ')' : '') + '</h3>' +
-			(head ? '<div class="branchLeaf isHead" data-branch="' + escapeHtml(head) + '">' + SVG_ICONS.branch + '<span class="branchName">' + escapeHtml(head) + '</span></div>' : '<div class="noBranch">' + t('未检出任何分支') + '</div>') +
-			'</div>';
 
-		// Local branches
+		// Local branches（在对应条目上标注 HEAD）
 		html += '<div class="branchesSection"><h3>' + t('本地') + '</h3>' + (local.length > 0 ? renderTree(local) : '<div class="noBranch">' + t('无本地分支') + '</div>') + '</div>';
 
 		// Remote branches
 		const remotes = config?.remotes?.map(r => r.name) || Object.keys(remoteMap);
 		for (const remote of remotes) {
-			const list = remoteMap[remote] || [];
+			const list = (remoteMap[remote] || []).filter((name) => name !== 'HEAD');
 			html += '<div class="branchesSection"><h3>' + t('远程') + ' · ' + escapeHtml(remote) + '</h3>' + (list.length > 0 ? renderTree(list, remote) : '<div class="noBranch">' + t('无远程分支') + '</div>') + '</div>';
 		}
 
 		this.contentsElem.innerHTML = html;
+		// 着色：分支图标蓝色、HEAD 五角星黄色
+		this.contentsElem.querySelectorAll('.branchIcon svg path, .branchFolder .folderToggle svg path')
+			.forEach((el) => (el as HTMLElement).setAttribute('fill', '#1e90ff'));
+		this.contentsElem.querySelectorAll('.headStarIcon svg path')
+			.forEach((el) => (el as HTMLElement).setAttribute('fill', '#ffd700'));
 
 		// Bind interactions
 		const selectLeaf = (leaf: HTMLElement) => {
@@ -236,9 +246,21 @@ class BranchesWidget {
 				e.preventDefault();
 				e.stopPropagation();
 				selectLeaf(el as HTMLElement);
-				const name = (el as HTMLElement).dataset.branch!;
-				const remote = (el as HTMLElement).getAttribute('data-remote');
-				this.view.openBranchContextMenu(el as HTMLElement, name, remote, e as MouseEvent, this.widgetElem);
+				const baseBranch = (el as HTMLElement).dataset.branch!; // 纯分支名（远程叶子不含 remote 前缀）
+				// 若用户未显式配置“展示远程分支”（Default），包含所有有同名分支的远程
+				const repoState = this.view.getRepoState(this.currentRepo!);
+				const allBranches = branches as string[];
+				const hasLocal = allBranches.includes(baseBranch);
+				let selection: string[] = hasLocal ? [baseBranch] : [];
+				if (repoState && repoState.showRemoteBranchesV2 === GG.BooleanOverride.Default) {
+					const remotes = (this.view.getRepoConfig()?.remotes || []).map(r => r.name);
+					const includeRemotes = (remotes.length > 0 ? remotes : ['origin']).filter((r) => allBranches.includes('remotes/' + r + '/' + baseBranch));
+					selection = (hasLocal ? [baseBranch] : []).concat(includeRemotes.map((r) => 'remotes/' + r + '/' + baseBranch));
+				}
+				// 若当前已显示该选择，再次双击则切回“显示全部”
+				const current = this.view.getCurrentBranchesSelection();
+				const isSame = current !== null && !(current.length === 1 && current[0] === SHOW_ALL_BRANCHES) && current.length === selection.length && selection.every(v => current.includes(v));
+				this.view.applyBranchSelection(isSame ? [SHOW_ALL_BRANCHES] : selection);
 			});
 			el.addEventListener('contextmenu', (e) => {
 				e.preventDefault();
