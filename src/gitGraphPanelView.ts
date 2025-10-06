@@ -304,6 +304,22 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 				case 'copyToClipboard':
 					this.sendMessage({ command: 'copyToClipboard', error: await copyToClipboard(msg.data) });
 					break;
+				case 'checkoutBranch': {
+					const errors = [await this.dataSource.checkoutBranch(msg.repo, msg.branchName, msg.remoteBranch)];
+					if (errors[0] === null && msg.pullAfterwards !== null) {
+						errors.push(await this.dataSource.pullBranch(
+							msg.repo,
+							msg.pullAfterwards.branchName,
+							msg.pullAfterwards.remote,
+							msg.pullAfterwards.createNewCommit,
+							msg.pullAfterwards.squash
+						));
+					}
+					this.sendMessage({ command: 'checkoutBranch', pullAfterwards: msg.pullAfterwards, errors });
+					break; }
+				case 'checkoutCommit':
+					this.sendMessage({ command: 'checkoutCommit', error: await this.dataSource.checkoutCommit(msg.repo, msg.commitHash) });
+					break;
 				case 'viewDiff':
 					this.sendMessage({ command: 'viewDiff', error: await viewDiff(msg.repo, msg.fromHash, msg.toHash, msg.oldFilePath, msg.newFilePath, msg.type) });
 					break;
