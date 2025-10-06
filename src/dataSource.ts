@@ -1363,7 +1363,8 @@ export class DataSource extends Disposable {
 	 * @returns The base commit details.
 	 */
 	private getCommitDetailsBase(repo: string, commitHash: string) {
-		return this.spawnGit(['-c', 'log.showSignature=false', 'show', '--quiet', commitHash, '--format=' + this.gitFormatCommitDetails], repo, (stdout): DeepWriteable<GitCommitDetails> => {
+		// Ensure --format appears before non-option arguments (commit spec)
+		return this.spawnGit(['-c', 'log.showSignature=false', 'show', '--quiet', '--format=' + this.gitFormatCommitDetails, commitHash], repo, (stdout): DeepWriteable<GitCommitDetails> => {
 			const commitInfo = stdout.split(GIT_LOG_SEPARATOR);
 			return {
 				hash: commitInfo[0],

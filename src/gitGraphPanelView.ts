@@ -117,6 +117,9 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 				loadMoreCommitsAutomatically: config.loadMoreCommitsAutomatically,
 				markdown: config.markdown,
 				uiLanguage: config.uiLanguage,
+				panelControlsPosition: config.panelControlsPosition,
+				panelControlsCompact: config.panelControlsCompact,
+				panelSettingsWidgetMode: config.panelSettingsWidgetMode,
 				mute: config.muteCommits,
 				onlyFollowFirstParent: config.onlyFollowFirstParent,
 				onRepoLoad: config.onRepoLoad,
@@ -218,107 +221,120 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 
 	private async respondToMessage(msg: any) {
 		this.repoFileWatcher.mute();
-		switch (msg.command) {
-			case 'loadRepos':
-				if (!msg.check || !await this.repoManager.checkReposExist()) {
-					this.sendMessage({ command: 'loadRepos', repos: this.repoManager.getRepos(), loadViewTo: null });
-				}
-				break;
-			case 'loadRepoInfo': {
-				this.loadRepoInfoRefreshId = msg.refreshId;
-				let repoInfo = await this.dataSource.getRepoInfo(msg.repo, msg.showRemoteBranches, msg.showStashes, msg.hideRemotes), isRepo = true;
-				if (repoInfo.error) {
-					isRepo = (await this.dataSource.repoRoot(msg.repo)) !== null;
-					if (!isRepo) repoInfo.error = null;
-				}
-				this.sendMessage({ command: 'loadRepoInfo', refreshId: msg.refreshId, ...repoInfo, isRepo });
-				if (msg.repo !== null) {
-					this.extensionState.setLastActiveRepo(msg.repo);
-					this.repoFileWatcher.start(msg.repo);
-				}
-				break; }
-			case 'loadCommits':
-				this.loadCommitsRefreshId = msg.refreshId;
-				this.sendMessage({
-					command: 'loadCommits',
-					refreshId: msg.refreshId,
-					onlyFollowFirstParent: msg.onlyFollowFirstParent,
-					...await this.dataSource.getCommits(msg.repo, msg.branches, msg.maxCommits, msg.showTags, msg.showRemoteBranches, msg.includeCommitsMentionedByReflogs, msg.onlyFollowFirstParent, msg.commitOrdering, msg.remotes, msg.hideRemotes, msg.stashes)
-				});
-				break;
-			case 'loadConfig':
-				this.sendMessage({ command: 'loadConfig', repo: msg.repo, ...await this.dataSource.getConfig(msg.repo, msg.remotes) });
-				break;
-			case 'openExtensionSettings':
-				this.sendMessage({ command: 'openExtensionSettings', error: await openExtensionSettings() });
-				break;
-			case 'openFile':
-				this.sendMessage({ command: 'openFile', error: await openFile(msg.repo, msg.path, msg.hash, msg.type) });
-				break;
-			case 'openExternalUrl':
-				this.sendMessage({ command: 'openExternalUrl', error: await openExternalUrl(msg.url) });
-				break;
-			case 'commitDetails': {
-				const data = await Promise.all([
-					msg.commitHash === 'UNCOMMITTED'
-						? this.dataSource.getUncommittedDetails(msg.repo)
-						: msg.stash === null
-							? this.dataSource.getCommitDetails(msg.repo, msg.commitHash, msg.hasParents)
-							: this.dataSource.getStashDetails(msg.repo, msg.commitHash, msg.stash),
-					msg.avatarEmail !== null ? this.avatarManager.getAvatarImage(msg.avatarEmail) : Promise.resolve(null)
-				]);
-				this.sendMessage({
-					command: 'commitDetails',
-					...data[0],
-					avatar: data[1],
-					codeReview: msg.commitHash !== 'UNCOMMITTED' ? this.extensionState.getCodeReview(msg.repo, msg.commitHash) : null,
-					refresh: msg.refresh
-				});
-				break; }
-			case 'compareCommits':
-				this.sendMessage({
-					command: 'compareCommits',
-					commitHash: msg.commitHash,
-					compareWithHash: msg.compareWithHash,
-					...await this.dataSource.getCommitComparison(msg.repo, msg.fromHash, msg.toHash),
-					codeReview: msg.toHash !== 'UNCOMMITTED' ? this.extensionState.getCodeReview(msg.repo, msg.fromHash + '-' + msg.toHash) : null,
-					refresh: msg.refresh
-				});
-				break;
-			case 'copyFilePath':
-				this.sendMessage({ command: 'copyFilePath', error: await copyFilePathToClipboard(msg.repo, msg.filePath, msg.absolute) });
-				break;
-			case 'copyToClipboard':
-				this.sendMessage({ command: 'copyToClipboard', error: await copyToClipboard(msg.data) });
-				break;
-			case 'viewDiff':
-				this.sendMessage({ command: 'viewDiff', error: await viewDiff(msg.repo, msg.fromHash, msg.toHash, msg.oldFilePath, msg.newFilePath, msg.type) });
-				break;
-			case 'viewDiffWithWorkingFile':
-				this.sendMessage({ command: 'viewDiffWithWorkingFile', error: await viewDiffWithWorkingFile(msg.repo, msg.hash, msg.filePath, this.dataSource) });
-				break;
-			case 'viewFileAtRevision':
-				this.sendMessage({ command: 'viewFileAtRevision', error: await viewFileAtRevision(msg.repo, msg.hash, msg.filePath) });
-				break;
-			case 'showErrorMessage':
-				showErrorMessage(msg.message);
-				break;
-			case 'rescanForRepos':
-				this.repoManager.searchWorkspaceForRepos();
-				break;
-			case 'viewScm':
-				await viewScm();
-				break;
-			case 'editUserDetails':
-				const errors = [
-					await this.dataSource.setConfigValue(msg.repo, GitConfigKey.UserName, msg.name, msg.location),
-					await this.dataSource.setConfigValue(msg.repo, GitConfigKey.UserEmail, msg.email, msg.location)
-				];
-				this.sendMessage({ command: 'editUserDetails', errors });
-				break;
-			default:
+		try {
+			switch (msg.command) {
+				case 'loadRepos':
+					if (!msg.check || !await this.repoManager.checkReposExist()) {
+						this.sendMessage({ command: 'loadRepos', repos: this.repoManager.getRepos(), loadViewTo: null });
+					}
+					break;
+				case 'loadRepoInfo': {
+					this.loadRepoInfoRefreshId = msg.refreshId;
+					let repoInfo = await this.dataSource.getRepoInfo(msg.repo, msg.showRemoteBranches, msg.showStashes, msg.hideRemotes), isRepo = true;
+					if (repoInfo.error) {
+						isRepo = (await this.dataSource.repoRoot(msg.repo)) !== null;
+						if (!isRepo) repoInfo.error = null;
+					}
+					this.sendMessage({ command: 'loadRepoInfo', refreshId: msg.refreshId, ...repoInfo, isRepo });
+					if (msg.repo !== null) {
+						this.extensionState.setLastActiveRepo(msg.repo);
+						this.repoFileWatcher.start(msg.repo);
+					}
+					break; }
+				case 'loadCommits':
+					this.loadCommitsRefreshId = msg.refreshId;
+					this.sendMessage({
+						command: 'loadCommits',
+						refreshId: msg.refreshId,
+						onlyFollowFirstParent: msg.onlyFollowFirstParent,
+						...await this.dataSource.getCommits(msg.repo, msg.branches, msg.maxCommits, msg.showTags, msg.showRemoteBranches, msg.includeCommitsMentionedByReflogs, msg.onlyFollowFirstParent, msg.commitOrdering, msg.remotes, msg.hideRemotes, msg.stashes)
+					});
+					break;
+				case 'loadConfig':
+					this.sendMessage({ command: 'loadConfig', repo: msg.repo, ...await this.dataSource.getConfig(msg.repo, msg.remotes) });
+					break;
+				case 'openExtensionSettings':
+					this.sendMessage({ command: 'openExtensionSettings', error: await openExtensionSettings() });
+					break;
+				case 'openFile':
+					this.sendMessage({ command: 'openFile', error: await openFile(msg.repo, msg.path, msg.hash, msg.type) });
+					break;
+				case 'openExternalUrl':
+					this.sendMessage({ command: 'openExternalUrl', error: await openExternalUrl(msg.url) });
+					break;
+				case 'setRepoState':
+					this.repoManager.setRepoState(msg.repo, msg.state);
+					break;
+				case 'fetch':
+					this.sendMessage({ command: 'fetch', error: await this.dataSource.fetch(msg.repo, msg.name, msg.prune, msg.pruneTags) });
+					break;
+				case 'openTerminal':
+					this.sendMessage({ command: 'openTerminal', error: await this.dataSource.openGitTerminal(msg.repo, null, msg.name) });
+					break;
+				case 'commitDetails': {
+					const data = await Promise.all([
+						msg.commitHash === 'UNCOMMITTED'
+							? this.dataSource.getUncommittedDetails(msg.repo)
+							: msg.stash === null
+								? this.dataSource.getCommitDetails(msg.repo, msg.commitHash, msg.hasParents)
+								: this.dataSource.getStashDetails(msg.repo, msg.commitHash, msg.stash),
+						msg.avatarEmail !== null ? this.avatarManager.getAvatarImage(msg.avatarEmail) : Promise.resolve(null)
+					]);
+					this.sendMessage({
+						command: 'commitDetails',
+						...data[0],
+						avatar: data[1],
+						codeReview: msg.commitHash !== 'UNCOMMITTED' ? this.extensionState.getCodeReview(msg.repo, msg.commitHash) : null,
+						refresh: msg.refresh
+					});
+					break; }
+				case 'compareCommits':
+					this.sendMessage({
+						command: 'compareCommits',
+						commitHash: msg.commitHash,
+						compareWithHash: msg.compareWithHash,
+						...await this.dataSource.getCommitComparison(msg.repo, msg.fromHash, msg.toHash),
+						codeReview: msg.toHash !== 'UNCOMMITTED' ? this.extensionState.getCodeReview(msg.repo, msg.fromHash + '-' + msg.toHash) : null,
+						refresh: msg.refresh
+					});
+					break;
+				case 'copyFilePath':
+					this.sendMessage({ command: 'copyFilePath', error: await copyFilePathToClipboard(msg.repo, msg.filePath, msg.absolute) });
+					break;
+				case 'copyToClipboard':
+					this.sendMessage({ command: 'copyToClipboard', error: await copyToClipboard(msg.data) });
+					break;
+				case 'viewDiff':
+					this.sendMessage({ command: 'viewDiff', error: await viewDiff(msg.repo, msg.fromHash, msg.toHash, msg.oldFilePath, msg.newFilePath, msg.type) });
+					break;
+				case 'viewDiffWithWorkingFile':
+					this.sendMessage({ command: 'viewDiffWithWorkingFile', error: await viewDiffWithWorkingFile(msg.repo, msg.hash, msg.filePath, this.dataSource) });
+					break;
+				case 'viewFileAtRevision':
+					this.sendMessage({ command: 'viewFileAtRevision', error: await viewFileAtRevision(msg.repo, msg.hash, msg.filePath) });
+					break;
+				case 'showErrorMessage':
+					showErrorMessage(msg.message);
+					break;
+				case 'rescanForRepos':
+					this.repoManager.searchWorkspaceForRepos();
+					break;
+				case 'viewScm':
+					await viewScm();
+					break;
+				case 'editUserDetails':
+					const errors = [
+						await this.dataSource.setConfigValue(msg.repo, GitConfigKey.UserName, msg.name, msg.location),
+						await this.dataSource.setConfigValue(msg.repo, GitConfigKey.UserEmail, msg.email, msg.location)
+					];
+					this.sendMessage({ command: 'editUserDetails', errors });
+					break;
+				default:
 				// For MVP panel support, not all commands are implemented. Editor mode remains fully featured.
-				break;
+					break;
+			}
+		} finally {
+			this.repoFileWatcher.unmute();
 		}
 	}
 }

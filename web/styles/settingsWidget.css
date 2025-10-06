@@ -3,7 +3,7 @@
 	position:fixed;
 	top:-158px;
 	right:28px;
-	width:360px;
+	width:var(--gg-docked-settings-width, 360px);
 	min-height:146px;
 	padding:0 10px 4px 10px;
 	z-index:31;
@@ -33,6 +33,25 @@
 /* Panel side controls: avoid covering content by offsetting away from the fixed toolbar */
 body.controlsSideRight #settingsWidget{ right:80px; }
 body.controlsSideLeft #settingsWidget{ left:80px; right:auto; }
+
+/* Docked mode: full height and flush to side toolbar */
+body.settingsDocked #settingsWidget{
+    /* Hidden (not active): keep off-screen like floating mode */
+    top:-158px;
+    bottom:auto;
+    max-height:90vh;
+    height:auto;
+}
+body.settingsDocked #settingsWidget.active{
+    top:0;
+    bottom:0;
+    max-height:none;
+    border-left:1px solid rgba(128,128,128,0.5);
+}
+/* Docked 模式下关闭/打开不使用上滑动画，避免与宽度不一致 */
+body.settingsDocked #settingsWidget.transition{ transition:none; }
+body.controlsSideRight.settingsDocked #settingsWidget.active{ right:var(--gg-side-toolbar-width); }
+body.controlsSideLeft.settingsDocked #settingsWidget.active{ left:var(--gg-side-toolbar-width); right:auto; }
 
 #settingsWidget h2{
 	margin:8px 10px;
@@ -264,9 +283,21 @@ body.controlsSideLeft #settingsWidget{ left:80px; right:auto; }
 	cursor:help;
 }
 #settingsWidget .settingsWidgetInfo > svg{
-	width:15px !important;
-	height:15px !important;
-	margin-top:-2px;
-	margin-left:5px;
-	vertical-align:middle;
+    width:15px !important;
+    height:15px !important;
+    margin-top:-2px;
+    margin-left:5px;
+    vertical-align:middle;
 }
+
+/* Divider used to resize docked settings width */
+#settingsDockDivider{
+    position:fixed;
+    top:0;
+    bottom:0;
+    width:6px;
+    z-index:33;
+    cursor:col-resize;
+    background:transparent;
+}
+#settingsDockDivider:hover{ background: rgba(128,128,128,0.15); }

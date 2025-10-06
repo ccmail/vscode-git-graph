@@ -198,25 +198,26 @@ interface PullRequestConfigCustom extends PullRequestConfigBase {
 export type PullRequestConfig = PullRequestConfigBuiltIn | PullRequestConfigCustom;
 
 export interface GitRepoState {
-	cdvDivider: number;
-	cdvHeight: number;
-	columnWidths: ColumnWidth[] | null;
-	commitOrdering: RepoCommitOrdering;
-	fileViewType: FileViewType;
-	hideRemotes: string[];
-	includeCommitsMentionedByReflogs: BooleanOverride;
-	issueLinkingConfig: IssueLinkingConfig | null;
-	lastImportAt: number;
-	name: string | null;
-	onlyFollowFirstParent: BooleanOverride;
-	onRepoLoadShowCheckedOutBranch: BooleanOverride;
-	onRepoLoadShowSpecificBranches: string[] | null;
-	pullRequestConfig: PullRequestConfig | null;
-	showRemoteBranches: boolean;
-	showRemoteBranchesV2: BooleanOverride;
-	showStashes: BooleanOverride;
-	showTags: BooleanOverride;
-	workspaceFolderIndex: number | null;
+    cdvDivider: number;
+    cdvHeight: number;
+    columnWidths: ColumnWidth[] | null;
+    settingsDockPct?: number; // 0..1, percent of panel width used by docked settings (default 0.3)
+    commitOrdering: RepoCommitOrdering;
+    fileViewType: FileViewType;
+    hideRemotes: string[];
+    includeCommitsMentionedByReflogs: BooleanOverride;
+    issueLinkingConfig: IssueLinkingConfig | null;
+    lastImportAt: number;
+    name: string | null;
+    onlyFollowFirstParent: BooleanOverride;
+    onRepoLoadShowCheckedOutBranch: BooleanOverride;
+    onRepoLoadShowSpecificBranches: string[] | null;
+    pullRequestConfig: PullRequestConfig | null;
+    showRemoteBranches: boolean;
+    showRemoteBranchesV2: BooleanOverride;
+    showStashes: BooleanOverride;
+    showTags: BooleanOverride;
+    workspaceFolderIndex: number | null;
 }
 
 
@@ -255,6 +256,8 @@ export interface GitGraphViewConfig {
 	readonly viewLocation?: 'editor' | 'panel';
 	readonly uiLanguage?: 'auto' | 'en' | 'zh-CN';
 	readonly panelControlsPosition?: 'top' | 'left' | 'right';
+	readonly panelControlsCompact?: boolean;
+	readonly panelSettingsWidgetMode?: 'floating' | 'docked';
 	readonly mute: MuteCommitsConfig;
 	readonly onlyFollowFirstParent: boolean;
 	readonly onRepoLoad: OnRepoLoadConfig;

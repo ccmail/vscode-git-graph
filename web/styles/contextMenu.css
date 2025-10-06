@@ -11,6 +11,11 @@
 	-webkit-user-select:none;
 	user-select:none;
 }
+
+/* Docked 右侧面板中的菜单需要更高层级以覆盖 Dock 面板 */
+.contextMenu.dockMenu{
+	z-index:100;
+}
 body.vscode-high-contrast .contextMenu{
 	outline:1px solid var(--vscode-menu-border, transparent);
 	outline-offset:-1px;

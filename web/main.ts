@@ -43,6 +43,7 @@ class GitGraphView {
 
 	private readonly findWidget: FindWidget;
 	private readonly settingsWidget: SettingsWidget;
+	private readonly branchesWidget: BranchesWidget;
 	private readonly repoDropdown: Dropdown;
 	private readonly branchDropdown: Dropdown;
 
@@ -82,6 +83,9 @@ class GitGraphView {
 
 		// Detect side controls layout (panel left/right) to adjust scroll calculations
 		this.sideControlsLayout = document.body.classList.contains('controlsSideLeft') || document.body.classList.contains('controlsSideRight');
+		// Apply compact side controls & docked settings widget if configured
+		if (initialState.config.panelControlsCompact) document.body.classList.add('controlsCompact');
+		if (initialState.config.panelSettingsWidgetMode === 'docked') document.body.classList.add('settingsDocked');
 
 		this.repoDropdown = new Dropdown('repoDropdown', true, false, 'Repos', (values) => {
 			this.loadRepo(values[0]);
@@ -108,9 +112,12 @@ class GitGraphView {
 			}
 		});
 		this.renderRefreshButton();
+		// Hover title在 renderRefreshButton 内设置，这里确保初始也有
+		this.refreshBtnElem.title = t('刷新');
 
 		this.findWidget = new FindWidget(this);
 		this.settingsWidget = new SettingsWidget(this);
+		this.branchesWidget = new BranchesWidget(this);
 
 		alterClass(document.body, CLASS_BRANCH_LABELS_ALIGNED_TO_GRAPH, this.config.referenceLabels.branchLabelsAlignedToGraph);
 		alterClass(document.body, CLASS_TAG_LABELS_RIGHT_ALIGNED, this.config.referenceLabels.tagLabelsOnRight);
@@ -157,10 +164,18 @@ class GitGraphView {
 		fetchBtn.addEventListener('click', () => this.fetchFromRemotesAction());
 		findBtn.innerHTML = SVG_ICONS.search;
 		(findBtn as HTMLElement).title = t('查找');
-		findBtn.addEventListener('click', () => this.findWidget.show(true));
+		findBtn.addEventListener('click', () => {
+			if (this.findWidget.isVisible()) this.findWidget.close();
+			else this.findWidget.show(true);
+		});
 		settingsBtn.innerHTML = SVG_ICONS.gear;
 		(settingsBtn as HTMLElement).title = t('仓库设置');
-		settingsBtn.addEventListener('click', () => this.settingsWidget.show(this.currentRepo));
+		settingsBtn.addEventListener('click', () => {
+			// 打开设置前，确保分支面板被关闭（两者共用右侧 Dock）
+			if (this.branchesWidget.isVisible()) this.branchesWidget.close();
+			if (this.settingsWidget.isVisible()) this.settingsWidget.close();
+			else this.settingsWidget.show(this.currentRepo);
+		});
 		terminalBtn.innerHTML = SVG_ICONS.terminal;
 		(terminalBtn as HTMLElement).title = t('打开该仓库的终端');
 		terminalBtn.addEventListener('click', () => {
@@ -176,14 +191,16 @@ class GitGraphView {
 			branchesBtn.innerHTML = SVG_ICONS.branch;
 			(branchesBtn as HTMLElement).title = t('分支');
 			branchesBtn.addEventListener('click', () => {
-				const cur = document.querySelector('#branchDropdown .dropdownCurrentValue') as HTMLElement | null;
-				if (cur) cur.click();
+				// 互斥：与“仓库设置”互斥占位
+				if (this.settingsWidget.isVisible()) this.settingsWidget.close();
+				if (this.branchesWidget.isVisible()) this.branchesWidget.close();
+				else this.branchesWidget.show(this.currentRepo);
 			});
 		}
 		if (remoteToggleBtn) {
 			const renderRemoteIcon = () => {
 				remoteToggleBtn!.innerHTML = this.showRemoteBranchesElem.checked ? SVG_ICONS.eyeOpen : SVG_ICONS.eyeClosed;
-				(remoteToggleBtn as HTMLElement).title = this.showRemoteBranchesElem.checked ? t('显示远程分支') : t('隐藏远程分支');
+				(remoteToggleBtn as HTMLElement).title = this.showRemoteBranchesElem.checked ? t('隐藏远程分支') : t('显示远程分支');
 			};
 			renderRemoteIcon();
 			remoteToggleBtn.addEventListener('click', () => {
@@ -248,6 +265,7 @@ class GitGraphView {
 		this.renderFetchButton();
 		this.closeCommitDetails(false);
 		this.settingsWidget.close();
+		if (this.branchesWidget.isVisible()) this.branchesWidget.close();
 		this.saveState();
 		this.refresh(true);
 	}
@@ -303,6 +321,8 @@ class GitGraphView {
 
 		// Set up branch dropdown options
 		this.branchDropdown.setOptions(this.getBranchOptions(true), this.currentBranches);
+		// Refresh docked branches panel if open
+		this.branchesWidget.refresh();
 
 		// Remove hidden remotes that no longer exist
 		let hiddenRemotes = this.gitRepos[this.currentRepo].hideRemotes;
@@ -555,6 +575,14 @@ class GitGraphView {
 		return this.gitBranches;
 	}
 
+	public getBranchHead(): string | null {
+		return this.gitBranchHead;
+	}
+
+	public closeBranchesPanel() {
+		if (this.branchesWidget.isVisible()) this.branchesWidget.close();
+	}
+
 	public getBranchOptions(includeShowAll?: boolean): ReadonlyArray<DialogSelectInputOption> {
 		const options: DialogSelectInputOption[] = [];
 		if (includeShowAll) {
@@ -602,6 +630,62 @@ class GitGraphView {
 		return typeof this.gitRepos[repo] !== 'undefined'
 			? this.gitRepos[repo]
 			: null;
+	}
+
+	/* Branches Panel Integration */
+
+	public openBranchContextMenu(elem: HTMLElement, branchName: string, remote: string | null, ev: MouseEvent, frameElem?: HTMLElement) {
+		// Build a RefTarget-like anchor for context menu actions
+		const ref = remote ? (remote + '/' + branchName) : branchName;
+		const headHash = this.commitHead || (this.commits.length > 0 ? this.commits[0].hash : 'HEAD');
+		const idx = this.getCommitId(headHash) || 0;
+		const target: any = {
+			type: TargetType.Ref,
+			elem: elem,
+			hash: headHash,
+			index: idx,
+			ref: ref
+		};
+		const actions = remote ? this.getRemoteBranchContextMenuActions(remote, target as any) : this.getBranchContextMenuActions(target as any);
+		contextMenu.show(actions, false, target as any, ev, frameElem || this.viewElem, null, 'dockMenu');
+	}
+
+	/**
+     * 发起提交详情请求；当为 UNCOMMITTED 时，增加降级兜底：超时未返回则用比较视图展示。
+     */
+	public requestCommitDetails(hash: string, refresh: boolean) {
+		let commit = this.commits[this.commitLookup[hash]];
+		sendMessage({
+			command: 'commitDetails',
+			repo: this.currentRepo,
+			commitHash: hash,
+			hasParents: commit.parents.length > 0,
+			stash: commit.stash,
+			avatarEmail: this.config.fetchAvatars && hash !== UNCOMMITTED ? commit.email : null,
+			refresh: refresh
+		});
+		// 降级兜底：5s 未返回则比较 HEAD 与 UNCOMMITTED
+		if (hash === UNCOMMITTED) {
+			const expectedHash = hash;
+			const head = this.commitHead;
+			window.setTimeout(() => {
+				if (!this.expandedCommit || !this.isCdvOpen(expectedHash, null) || !this.expandedCommit.loading) return;
+				if (head) {
+					// 优先以表格中的两行元素构造比较视图（更贴合现有渲染流程）
+					const commitElems = getCommitElems();
+					const commitIdx = this.getCommitId(expectedHash);
+					const headIdx = this.getCommitId(head);
+					const commitElem = findCommitElemWithId(commitElems, commitIdx);
+					const compareWithElem = findCommitElemWithId(commitElems, headIdx);
+					if (commitElem && compareWithElem) {
+						this.loadCommitComparison(commitElem, compareWithElem);
+					} else {
+						// 退化到直接请求比较数据
+						this.requestCommitComparison(head, UNCOMMITTED, true);
+					}
+				}
+			}, 5000);
+		}
 	}
 
 	public isConfigLoading(): boolean {
@@ -691,18 +775,7 @@ class GitGraphView {
 		this.settingsWidget.refresh();
 	}
 
-	public requestCommitDetails(hash: string, refresh: boolean) {
-		let commit = this.commits[this.commitLookup[hash]];
-		sendMessage({
-			command: 'commitDetails',
-			repo: this.currentRepo,
-			commitHash: hash,
-			hasParents: commit.parents.length > 0,
-			stash: commit.stash,
-			avatarEmail: this.config.fetchAvatars && hash !== UNCOMMITTED ? commit.email : null,
-			refresh: refresh
-		});
-	}
+
 
 	public requestCommitComparison(hash: string, compareWithHash: string, refresh: boolean) {
 		let commitOrder = this.getCommitOrder(hash, compareWithHash);
@@ -1703,7 +1776,7 @@ class GitGraphView {
 	}
 
 	private fetchFromRemotesAction() {
-		runAction({ command: 'fetch', repo: this.currentRepo, name: null, prune: this.config.fetchAndPrune, pruneTags: this.config.fetchAndPruneTags }, 'Fetching from Remote(s)');
+		runAction({ command: 'fetch', repo: this.currentRepo, name: null, prune: this.config.fetchAndPrune, pruneTags: this.config.fetchAndPruneTags }, tl('Fetching from Remote(s)', '正在从远程获取'));
 	}
 
 	private mergeAction(obj: string, name: string, actionOn: GG.MergeActionOn, target: DialogTarget & (CommitTarget | RefTarget)) {

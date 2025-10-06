@@ -1,0 +1,61 @@
+#branchesWidget{
+	display:block;
+	position:fixed;
+	top:-158px;
+	right:28px;
+	width:var(--gg-docked-settings-width, 360px);
+	min-height:146px;
+	padding:0 10px 4px 10px;
+	z-index:31;
+	background-color:var(--vscode-editorWidget-background);
+	box-shadow:0 2px 8px var(--vscode-widget-shadow);
+	line-height:17px;
+	font-size:13px;
+	color:var(--vscode-editorSuggestWidget-foreground);
+	fill:var(--vscode-editorSuggestWidget-foreground);
+	fill-opacity:0.7;
+	-webkit-user-select:none;
+	user-select:none;
+	overflow-x:hidden;
+	overflow-y:auto;
+	max-height:90vh;
+}
+#branchesWidget.active{ top:0; }
+#branchesWidget.transition{ transition:top .2s linear; }
+
+/* Panel side controls offset */
+body.controlsSideRight #branchesWidget{ right:80px; }
+body.controlsSideLeft #branchesWidget{ left:80px; right:auto; }
+
+/* Docked full height */
+body.settingsDocked #branchesWidget{ top:-158px; bottom:auto; max-height:90vh; height:auto; }
+body.settingsDocked #branchesWidget.active{
+ top:0; bottom:0; max-height:none; border-left:1px solid rgba(128,128,128,0.5);
+}
+/* Docked 模式下关闭/打开不使用上滑动画 */
+body.settingsDocked #branchesWidget.transition{ transition:none; }
+body.controlsSideRight.settingsDocked #branchesWidget.active{ right:var(--gg-side-toolbar-width); }
+body.controlsSideLeft.settingsDocked #branchesWidget.active{ left:var(--gg-side-toolbar-width); right:auto; }
+
+#branchesWidget h2{
+	margin:8px 10px; padding:0; font-size:16px; line-height:24px; text-align:center;
+}
+
+.branchesSection{ position:relative; padding:6px; }
+.branchesSection h3{ margin:5px 0; font-size:14px; line-height:20px; }
+.noBranch{ opacity:0.6; padding:2px 6px; }
+
+.branchLeaf, .branchFolder{ cursor:pointer; padding:3px 6px; }
+.branchLeaf svg, .branchFolder svg{ width:12px !important; height:12px !important; margin-right:6px; vertical-align:middle; opacity:0.9; }
+.branchLeaf:hover svg, .branchFolder:hover svg{ opacity:1; }
+.branchLeaf.selected{ background: rgba(127,127,127,0.15); border-radius:4px; }
+.branchLeaf.isHead{ font-weight:bold; }
+.branchFolderChildren{ margin-left:0; }
+
+#branchesLoading{
+	display:none; position:absolute; top:0; left:0; right:0; height:24px; z-index:32; line-height:24px; text-align:center;
+}
+#branchesLoading svg{ display:inline-block; width:15px !important; height:20px !important; margin-top:2px; margin-right:8px; vertical-align:top; animation:loadingIconAnimation 2s linear infinite; }
+
+#branchesClose{ position:absolute; width:24px; height:24px; top:8px; right:10px; cursor:pointer; z-index:33; }
+#branchesClose svg{ position:absolute; left:4px; top:4px; width:16px !important; height:16px !important; }

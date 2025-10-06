@@ -21,6 +21,11 @@
 .findWidget.transition{
 	transition:top .2s linear;
 }
+
+/* Adjust position to avoid overlapping side toolbar & docked settings */
+body.controlsSideRight .findWidget{ right:calc(var(--gg-side-toolbar-width, 44px) + 20px); }
+body.settingsDocked.settingsOpen.controlsSideRight .findWidget{ right:calc(var(--gg-side-toolbar-width, 44px) + var(--gg-docked-settings-width, 360px) + 20px); }
+body.controlsSideLeft .findWidget{ left:calc(var(--gg-side-toolbar-width, 44px) + 20px); right:auto; }
 .findWidget[data-error] #findInput, .findWidget[data-error]:after{
 	outline:1px solid var(--vscode-inputValidation-errorBorder) !important;
 }

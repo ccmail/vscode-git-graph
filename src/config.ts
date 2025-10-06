@@ -99,6 +99,21 @@ class Config {
 	}
 
 	/**
+	 * Get whether to use compact controls in Panel mode.
+	 */
+	get panelControlsCompact(): boolean {
+		return !!this.config.get('panel.controlsCompact', false);
+	}
+
+	/**
+	 * Get the Settings Widget display mode for Panel (floating | docked).
+	 */
+	get panelSettingsWidgetMode(): 'floating' | 'docked' {
+		const mode = this.config.get<string>('panel.settingsWidgetMode', 'Floating');
+		return mode === 'Docked' ? 'docked' : 'floating';
+	}
+
+	/**
 	 * Get the Commit Details View configuration from the Extension Settings.
 	 */
 	get commitDetailsView(): CommitDetailsViewConfig {

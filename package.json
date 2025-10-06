@@ -1,7 +1,7 @@
 {
   "name": "git-graph",
   "displayName": "Git Graph",
-  "version": "1.30.1",
+  "version": "1.30.2",
   "publisher": "mhutchie",
   "author": {
     "name": "Michael Hutchison",
@@ -139,6 +139,24 @@
           ],
           "default": "Right",
           "description": "%setting.panel.controlsPosition.description%"
+        },
+        "git-graph.panel.controlsCompact": {
+          "type": "boolean",
+          "default": false,
+          "description": "%setting.panel.controlsCompact.description%"
+        },
+        "git-graph.panel.settingsWidgetMode": {
+          "type": "string",
+          "enum": [
+            "Floating",
+            "Docked"
+          ],
+          "enumDescriptions": [
+            "%setting.panel.settingsWidgetMode.enum.0%",
+            "%setting.panel.settingsWidgetMode.enum.1%"
+          ],
+          "default": "Floating",
+          "description": "%setting.panel.settingsWidgetMode.description%"
         },
         "git-graph.viewLocation": {
           "type": "string",

@@ -18,6 +18,7 @@ class SettingsWidget {
 	private readonly widgetElem: HTMLElement;
 	private readonly contentsElem: HTMLElement;
 	private readonly loadingElem: HTMLElement;
+	private dockDividerElem: HTMLElement | null = null;
 
 	/**
 	 * Construct a new SettingsWidget instance.
@@ -58,9 +59,15 @@ class SettingsWidget {
 		if (this.currentRepo !== null) return;
 		this.currentRepo = currentRepo;
 		this.scrollTop = scrollTop;
-		alterClass(this.widgetElem, CLASS_TRANSITION, isInitialLoad);
+		const isDocked = this.isDockedMode();
+		alterClass(this.widgetElem, CLASS_TRANSITION, isInitialLoad && !isDocked);
 		this.widgetElem.classList.add(CLASS_ACTIVE);
+		// 与分支面板互斥：打开设置前关闭分支面板
+		this.view.closeBranchesPanel();
+		// Mark settings panel open for docked layout to reserve space
+		document.body.classList.add('dockOpen');
 		this.view.saveState();
+		this.applyDockedWidth();
 		this.refresh();
 		if (isInitialLoad) {
 			this.view.requestLoadConfig();
@@ -75,6 +82,7 @@ class SettingsWidget {
 		this.repo = this.view.getRepoState(this.currentRepo);
 		this.config = this.view.getRepoConfig();
 		this.loading = this.view.isConfigLoading();
+		this.applyDockedWidth();
 		this.render();
 	}
 
@@ -87,12 +95,100 @@ class SettingsWidget {
 		this.repo = null;
 		this.config = null;
 		this.loading = false;
-		this.widgetElem.classList.add(CLASS_TRANSITION);
+		if (!this.isDockedMode()) this.widgetElem.classList.add(CLASS_TRANSITION);
 		this.widgetElem.classList.remove(CLASS_ACTIVE);
 		this.widgetElem.classList.remove(CLASS_LOADING);
 		this.contentsElem.innerHTML = '';
 		this.loadingElem.innerHTML = '';
+		// Remove docked space reservation
+		document.body.classList.remove('dockOpen');
+		this.removeDockDivider();
 		this.view.saveState();
+	}
+
+	private isDockedMode(): boolean {
+		return document.body.classList.contains('settingsDocked');
+	}
+
+	private applyDockedWidth() {
+		if (!this.isDockedMode()) return;
+		let pct: number | null = null;
+		if (this.repo && typeof (this.repo as any).settingsDockPct === 'number') pct = (this.repo as any).settingsDockPct as number;
+		// Migration: support old pixel-based width if it exists
+		if (pct === null && this.repo && typeof (this.repo as any).settingsDockWidth === 'number') {
+			const oldW = (this.repo as any).settingsDockWidth as number;
+			pct = this.computePctFromWidth(oldW);
+			if (this.currentRepo !== null) this.view.saveRepoStateValue(this.currentRepo as any, 'settingsDockPct' as any, pct as any);
+		}
+		if (pct === null) pct = 0.3;
+		const width = this.computeDockWidthFromPct(pct);
+		document.body.style.setProperty('--gg-docked-settings-width', width + 'px');
+		if (this.currentRepo !== null) this.createDockDivider();
+	}
+
+	private createDockDivider() {
+		if (!this.isDockedMode() || this.dockDividerElem) return;
+		const divider = document.createElement('div');
+		divider.id = 'settingsDockDivider';
+		this.positionDockDivider(divider);
+		divider.addEventListener('mousedown', (e) => this.startResizeDock(e));
+		document.body.appendChild(divider);
+		this.dockDividerElem = divider;
+	}
+
+	private removeDockDivider() {
+		if (this.dockDividerElem) {
+			this.dockDividerElem.remove();
+			this.dockDividerElem = null;
+		}
+	}
+
+	private positionDockDivider(divider: HTMLElement) {
+		const rect = (this.widgetElem as HTMLElement).getBoundingClientRect();
+		if (document.body.classList.contains('controlsSideRight')) {
+			divider.style.left = Math.round(rect.left - 3) + 'px';
+			divider.style.right = 'auto';
+		} else if (document.body.classList.contains('controlsSideLeft')) {
+			divider.style.left = Math.round(rect.right - 3) + 'px';
+			divider.style.right = 'auto';
+		}
+	}
+
+	private startResizeDock(e: MouseEvent) {
+		let startX = e.clientX;
+		const isRight = document.body.classList.contains('controlsSideRight');
+		const bodyStyle = getComputedStyle(document.body);
+		const startWidth = parseInt(bodyStyle.getPropertyValue('--gg-docked-settings-width')) || 360;
+		const minW = 260, maxW = 600;
+		const move = (ev: MouseEvent) => {
+			const dx = ev.clientX - startX;
+			let newW = isRight ? (startWidth - dx) : (startWidth + dx);
+			if (newW < minW) newW = minW; if (newW > maxW) newW = maxW;
+			document.body.style.setProperty('--gg-docked-settings-width', newW + 'px');
+			if (this.dockDividerElem) this.positionDockDivider(this.dockDividerElem);
+		};
+		const stop = () => {
+			eventOverlay.remove();
+			const w = parseInt(getComputedStyle(document.body).getPropertyValue('--gg-docked-settings-width')) || startWidth;
+			const pct = this.computePctFromWidth(w);
+			if (this.currentRepo !== null) this.view.saveRepoStateValue(this.currentRepo as any, 'settingsDockPct' as any, pct as any);
+		};
+		eventOverlay.create('colResize', move as any, stop as any);
+	}
+
+	private computeDockWidthFromPct(pct: number): number {
+		// Clamp percent between 0.2 and 0.6, then convert to px based on viewport width
+		let p = pct; if (p < 0.2) p = 0.2; if (p > 0.6) p = 0.6;
+		let width = Math.round(window.innerWidth * p);
+		if (width < 260) width = 260;
+		if (width > 600) width = 600;
+		return width;
+	}
+
+	private computePctFromWidth(width: number): number {
+		const pct = width / Math.max(window.innerWidth, 1);
+		// Clamp for persistence
+		return Math.max(0.2, Math.min(0.6, pct));
 	}
 
 
