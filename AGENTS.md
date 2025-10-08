@@ -76,6 +76,18 @@
   - “Git Graph”遵循 `git-graph.viewLocation`；
   - 新增“终端”按钮（命令 `git-graph.openRepoTerminal`），支持多仓库选择。
 
+### 提交级推送（Push Commit）使用说明（2025-10-07）
+- 入口：左侧提交表 → 右键任一提交 → “推送(push)此前提交(含选中commit)”。
+- 对话框：
+  - Remote 下拉：选择远程（默认推断 `origin`）。
+  - Branch 组合框（当前为可输入，后续升级为“可输入+候选过滤”）：输入目标远程分支名（不含 remote 前缀）。输入不存在的名称即表示“新建远程分支 <name>”。
+  - Mode：Normal（仅快进）/ Force With Lease（强制带租约）/ Force（强制覆盖）。
+  - 预览：展示 `<remote>/<branch>..commit` 的提交列表（左对齐卡片）。
+- 执行：点击 Push → 后端执行 `git push <remote> <commit>:<branch>`，仅将远端更新到该提交（不会一并推送本地后续提交）。
+- 验证：推送完成后刷新视图，关闭“正在执行”。
+
+注意：切换 Remote/Branch 后的预览刷新在低网速/远程不可用时可能延迟；若添加远程时卡住，请在可用网络下重试或先手动验证远程可达性。
+
 ### Panel 与 Editor 模式差异
 - Editor 模式完整逻辑位于 `src/gitGraphView.ts`（消息处理齐全）。
 - Panel 模式提供方为 `src/gitGraphPanelView.ts`，本项目已对齐 Editor 的关键消息处理；新增/调整时，记得两侧都要考虑。
