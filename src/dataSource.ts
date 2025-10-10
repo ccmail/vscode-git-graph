@@ -1,12 +1,14 @@
 import * as cp from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
+import { promisify } from 'util';
 import { decode, encodingExists } from 'iconv-lite';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { AskpassEnvironment, AskpassManager } from './askpass/askpassManager';
 import { getConfig } from './config';
 import { Logger } from './logger';
-import { CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, PushCommitPreviewCommit, PushCommitPreviewFileChange, RebaseActionOn, SquashMessageFormat, TagType, Writeable } from './types';
+import { CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitIdentity, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, PushCommitPreviewCommit, PushCommitPreviewFileChange, RebaseActionOn, SquashMessageFormat, TagType, Writeable } from './types';
 import { GitExecutable, GitVersionRequirement, UNABLE_TO_FIND_GIT_MSG, UNCOMMITTED, abbrevCommit, constructIncompatibleGitVersionMessage, doesVersionMeetRequirement, getPathFromStr, getPathFromUri, openGitTerminal, pathWithTrailingSlash, realpath, resolveSpawnOutput, showErrorMessage } from './utils';
 import { Disposable } from './utils/disposable';
 import { Event } from './utils/event';
@@ -17,6 +19,15 @@ const INVALID_BRANCH_REGEXP = /^\(.* .*\)$/;
 const REMOTE_HEAD_BRANCH_REGEXP = /^remotes\/.*\/HEAD$/;
 const GIT_LOG_SEPARATOR = 'XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb';
 const EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+type SpawnGitOptions = {
+	readonly env?: NodeJS.ProcessEnv;
+};
+
+const mkdtempAsync = promisify(fs.mkdtemp);
+const writeFileAsync = promisify(fs.writeFile);
+const unlinkAsync = promisify(fs.unlink);
+const rmdirAsync = promisify(fs.rmdir);
 
 export const enum GitConfigKey {
 	DiffGuiTool = 'diff.guitool',
@@ -1193,6 +1204,116 @@ export class DataSource extends Disposable {
 	}
 
 	/**
+	 * Retrieve commit information required before rewriting a commit.
+	 * @param repo The path of the repository.
+	 * @param commitHash The hash of the commit to rewrite.
+	 * @returns The commit message and identities to pre-fill the rewrite dialog.
+	 */
+	public async prepareRewriteCommit(repo: string, commitHash: string) {
+		try {
+			const details = await this.getCommitDetailsBase(repo, commitHash);
+			return {
+				message: details.body.replace(/\r\n|\r/g, '\n'),
+				authorName: details.author,
+				authorEmail: details.authorEmail,
+				committerName: details.committer,
+				committerEmail: details.committerEmail
+			};
+		} catch (error) {
+			throw typeof error === 'string'
+				? error
+				: error instanceof Error
+					? error.message
+					: 'An unexpected error occurred while loading the commit metadata.';
+		}
+	}
+
+	/**
+	 * Rewrite a commit's message and optional identities.
+	 * @param repo The path of the repository.
+	 * @param commitHash The hash of the commit to rewrite.
+	 * @param message The new commit message (subject + body).
+	 * @param author The new author identity, or NULL to retain the existing author.
+	 * @param committer The new committer identity, or NULL to retain the existing committer.
+	 * @returns The ErrorInfo from the executed command.
+	 */
+	public async rewriteCommit(repo: string, commitHash: string, message: string, author: GitCommitIdentity | null, committer: GitCommitIdentity | null) {
+		const normalizedMessage = message.replace(/\r\n|\r/g, '\n');
+		const finalMessage = normalizedMessage.endsWith('\n') ? normalizedMessage : normalizedMessage + '\n';
+
+		const tempDir = await mkdtempAsync(path.join(os.tmpdir(), 'git-graph-rewrite-'));
+		const messageFile = path.join(tempDir, 'message.txt');
+		await writeFileAsync(messageFile, finalMessage, 'utf8');
+
+		try {
+			const headHash = await this.spawnGit(['rev-parse', 'HEAD'], repo, (stdout) => stdout.trim());
+			if (headHash === commitHash) {
+				return await this.rewriteHeadCommit(repo, messageFile, author, committer);
+			}
+
+			let parentHash: string;
+			try {
+				parentHash = await this.spawnGit(['rev-parse', commitHash + '^'], repo, (stdout) => stdout.trim());
+			} catch (error) {
+				return typeof error === 'string'
+					? error
+					: 'Unable to determine the parent of the selected commit.';
+			}
+
+			if (parentHash === '') {
+				return 'Unable to rewrite the initial commit unless it is the current HEAD.';
+			}
+
+			const config = getConfig();
+			const envAssignments: string[] = [];
+			if (committer !== null) {
+				envAssignments.push('GIT_COMMITTER_NAME=' + DataSource.shellQuote(committer.name));
+				envAssignments.push('GIT_COMMITTER_EMAIL=' + DataSource.shellQuote(committer.email));
+			}
+
+			let amendCommand = 'git commit --amend -F ' + DataSource.shellQuote(messageFile);
+			if (author !== null) {
+				amendCommand += ' --author=' + DataSource.shellQuote(author.name + ' <' + author.email + '>');
+			}
+			if (config.signCommits) {
+				amendCommand += ' -S';
+			}
+
+			const execCommand = 'if [ "$GIT_COMMIT" = ' + DataSource.shellQuote(commitHash) + ' ]; then ' + (envAssignments.length > 0 ? envAssignments.join(' ') + ' ' : '') + amendCommand + '; fi';
+			const args = ['rebase'];
+			if (config.signCommits) {
+				args.push('-S');
+			}
+			args.push('--keep-empty');
+			args.push('--exec', execCommand);
+			args.push(parentHash);
+
+			return await this.runGitCommand(args, repo);
+		} catch (error) {
+			return typeof error === 'string' ? error : (error instanceof Error ? error.message : 'An unexpected error occurred while rewriting the commit.');
+		} finally {
+			try { await unlinkAsync(messageFile); } catch (_) { }
+			try { await rmdirAsync(tempDir); } catch (_) { }
+		}
+	}
+
+	private rewriteHeadCommit(repo: string, messageFile: string, author: GitCommitIdentity | null, committer: GitCommitIdentity | null) {
+		const args = ['commit', '--amend', '-F', messageFile];
+		if (author !== null) {
+			args.push('--author=' + author.name + ' <' + author.email + '>');
+		}
+		if (getConfig().signCommits) {
+			args.push('-S');
+		}
+		const env: NodeJS.ProcessEnv = {};
+		if (committer !== null) {
+			env.GIT_COMMITTER_NAME = committer.name;
+			env.GIT_COMMITTER_EMAIL = committer.email;
+		}
+		return this.runGitCommand(args, repo, Object.keys(env).length > 0 ? { env } : undefined);
+	}
+
+	/**
 	 * Reset the current branch to a specified commit.
 	 * @param repo The path of the repository.
 	 * @param commit The hash of the commit that the current branch should be reset to.
@@ -1930,8 +2051,8 @@ export class DataSource extends Disposable {
 	 * @param repo The repository to run the command in.
 	 * @returns The returned ErrorInfo (suitable for being sent to the Git Graph View).
 	 */
-	private runGitCommand(args: string[], repo: string): Promise<ErrorInfo> {
-		return this._spawnGit(args, repo, () => null).catch((errorMessage: string) => errorMessage);
+	private runGitCommand(args: string[], repo: string, options?: SpawnGitOptions): Promise<ErrorInfo> {
+		return this._spawnGit(args, repo, () => null, false, options).catch((errorMessage: string) => errorMessage);
 	}
 
 	/**
@@ -1951,15 +2072,27 @@ export class DataSource extends Disposable {
 	 * @param resolveValue A callback invoked to resolve the data from `stdout` and `stderr`.
 	 * @param ignoreExitCode Ignore the exit code returned by Git (default: `FALSE`).
 	 */
-	private _spawnGit<T>(args: string[], repo: string, resolveValue: { (stdout: Buffer, stderr: string): T }, ignoreExitCode: boolean = false) {
+	private _spawnGit<T>(args: string[], repo: string, resolveValue: { (stdout: Buffer, stderr: string): T }, ignoreExitCode: boolean = false, options?: SpawnGitOptions) {
 		return new Promise<T>((resolve, reject) => {
 			if (this.gitExecutable === null) {
 				return reject(UNABLE_TO_FIND_GIT_MSG);
 			}
 
+			const spawnEnv = Object.assign({}, process.env, this.askpassEnv);
+			if (options?.env) {
+				const entries = Object.entries(options.env);
+				for (let i = 0; i < entries.length; i++) {
+					const key = entries[i][0];
+					const value = entries[i][1];
+					if (typeof value !== 'undefined') {
+						spawnEnv[key] = value;
+					}
+				}
+			}
+
 			resolveSpawnOutput(cp.spawn(this.gitExecutable.path, args, {
 				cwd: repo,
-				env: Object.assign({}, process.env, this.askpassEnv)
+				env: spawnEnv
 			})).then((values) => {
 				const status = values[0], stdout = values[1], stderr = values[2];
 				if (status.code === 0 || ignoreExitCode) {
@@ -1971,6 +2104,10 @@ export class DataSource extends Disposable {
 
 			this.logger.logCmd('git', args);
 		});
+	}
+
+	private static shellQuote(value: string) {
+		return '\'' + value.replace(/'/g, '\'"\'"\'') + '\'';
 	}
 }
 

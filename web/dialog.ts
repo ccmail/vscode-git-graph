@@ -10,6 +10,7 @@ const enum DialogType {
 
 const enum DialogInputType {
 	Text,
+	Textarea,
 	TextRef,
 	Select,
 	Radio,
@@ -21,6 +22,15 @@ interface DialogTextInput {
 	readonly name: string;
 	readonly default: string;
 	readonly placeholder: string | null;
+	readonly info?: string;
+}
+
+interface DialogTextareaInput {
+	readonly type: DialogInputType.Textarea;
+	readonly name: string;
+	readonly default: string;
+	readonly placeholder: string | null;
+	readonly rows?: number;
 	readonly info?: string;
 }
 
@@ -71,7 +81,7 @@ interface DialogRadioInputOption {
 	readonly value: string;
 }
 
-type DialogInput = DialogTextInput | DialogTextRefInput | DialogSelectInput | DialogRadioInput | DialogCheckboxInput;
+type DialogInput = DialogTextInput | DialogTextareaInput | DialogTextRefInput | DialogSelectInput | DialogRadioInput | DialogCheckboxInput;
 type DialogInputValue = string | string[] | boolean;
 
 type DialogTarget = {
@@ -210,6 +220,9 @@ class Dialog {
 				const infoHtml = input.info ? '<span class="dialogInfo" title="' + escapeHtml(input.info) + '">' + SVG_ICONS.info + '</span>' : '';
 				if (input.type === DialogInputType.Select) {
 					inputHtml = '<td class="inputCol"><div id="dialogFormSelect' + id + '"></div></td>' + (infoColRequired ? '<td>' + infoHtml + '</td>' : '');
+				} else if (input.type === DialogInputType.Textarea) {
+					const rows = typeof input.rows === 'number' ? input.rows : 6;
+					inputHtml = '<td class="inputCol"><textarea id="dialogInput' + id + '" rows="' + rows + '"' + (input.placeholder !== null ? ' placeholder="' + escapeHtml(input.placeholder) + '"' : '') + ' tabindex="' + (id + 1) + '">' + escapeHtml(input.default.replace(/\r\n|\r|\n/g, '\n')) + '</textarea></td>' + (infoColRequired ? '<td>' + infoHtml + '</td>' : '');
 				} else if (input.type === DialogInputType.Checkbox) {
 					inputHtml = '<td class="inputCol"' + (infoColRequired ? ' colspan="2"' : '') + '><span class="dialogFormCheckbox"><label><input id="dialogInput' + id + '" type="checkbox"' + (input.value ? ' checked' : '') + ' tabindex="' + (id + 1) + '"/><span class="customCheckbox"></span>' + (multiElement && !multiCheckbox ? '' : input.name) + infoHtml + '</label></span></td>';
 				} else {
@@ -238,10 +251,11 @@ class Dialog {
 			} else if (input.type === DialogInputType.Select) {
 				return this.customSelects[index.toString()].getValue();
 			} else {
-				const elem = <HTMLInputElement>document.getElementById('dialogInput' + index);
-				return input.type === DialogInputType.Checkbox
-					? elem.checked // Checkboxes return a boolean indicating if the value is checked
-					: elem.value; // All other fields return the value as a string
+				const elem = <HTMLInputElement | HTMLTextAreaElement>document.getElementById('dialogInput' + index);
+				if (input.type === DialogInputType.Checkbox) {
+					return (<HTMLInputElement>elem).checked; // Checkboxes return a boolean indicating if the value is checked
+				}
+				return elem.value; // All other fields return the value as a string
 			}
 		});
 
@@ -285,9 +299,9 @@ class Dialog {
 			});
 		}
 
-		if (inputs.length > 0 && (inputs[0].type === DialogInputType.Text || inputs[0].type === DialogInputType.TextRef)) {
+		if (inputs.length > 0 && (inputs[0].type === DialogInputType.Text || inputs[0].type === DialogInputType.TextRef || inputs[0].type === DialogInputType.Textarea)) {
 			// If the first input is a text field, set focus to it.
-			(<HTMLInputElement>document.getElementById('dialogInput0')).focus();
+			(<HTMLInputElement | HTMLTextAreaElement>document.getElementById('dialogInput0')).focus();
 		}
 	}
 

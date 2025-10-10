@@ -43,6 +43,11 @@ export interface GitCommitDetails {
 	readonly fileChanges: ReadonlyArray<GitFileChange>;
 }
 
+export interface GitCommitIdentity {
+	readonly name: string;
+	readonly email: string;
+}
+
 export const enum GitSignatureStatus {
 	GoodAndValid = 'G',
 	GoodWithUnknownValidity = 'U',
@@ -841,6 +846,31 @@ export interface ResponseDropCommit extends ResponseWithErrorInfo {
 	readonly command: 'dropCommit';
 }
 
+export interface RequestPrepareRewriteCommit extends RepoRequest {
+	readonly command: 'prepareRewriteCommit';
+	readonly commitHash: string;
+}
+export interface ResponsePrepareRewriteCommit extends ResponseWithErrorInfo {
+	readonly command: 'prepareRewriteCommit';
+	readonly commitHash: string;
+	readonly message: string;
+	readonly authorName: string;
+	readonly authorEmail: string;
+	readonly committerName: string;
+	readonly committerEmail: string;
+}
+
+export interface RequestRewriteCommit extends RepoRequest {
+	readonly command: 'rewriteCommit';
+	readonly commitHash: string;
+	readonly message: string;
+	readonly author: GitCommitIdentity | null;
+	readonly committer: GitCommitIdentity | null;
+}
+export interface ResponseRewriteCommit extends ResponseWithErrorInfo {
+	readonly command: 'rewriteCommit';
+}
+
 export interface RequestDropStash extends RepoRequest {
 	readonly command: 'dropStash';
 	readonly selector: string;
@@ -1324,6 +1354,8 @@ export type RequestMessage =
 	| RequestDeleteTag
 	| RequestDeleteUserDetails
 	| RequestDropCommit
+	| RequestPrepareRewriteCommit
+	| RequestRewriteCommit
 	| RequestDropStash
 	| RequestEditRemote
 	| RequestEditUserDetails
@@ -1390,6 +1422,8 @@ export type ResponseMessage =
 	| ResponseDeleteTag
 	| ResponseDeleteUserDetails
 	| ResponseDropCommit
+	| ResponsePrepareRewriteCommit
+	| ResponseRewriteCommit
 	| ResponseDropStash
 	| ResponseEditRemote
 	| ResponseEditUserDetails

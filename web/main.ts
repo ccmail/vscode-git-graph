@@ -1,3 +1,17 @@
+interface RewriteCommitFormValues {
+	message: string;
+	authorName: string;
+	authorEmail: string;
+	committerName: string;
+	committerEmail: string;
+}
+
+interface PendingRewriteCommit {
+	hash: string;
+	target: DialogTarget & CommitTarget;
+	defaults: RewriteCommitFormValues | null;
+}
+
 class GitGraphView {
 	private gitRepos: GG.GitRepoSet;
 	private gitBranches: ReadonlyArray<string> = [];
@@ -53,6 +67,7 @@ class GitGraphView {
 
 	private pushCommitRecentBranches: string[] = [];
 	private restoreDialogClose: (() => void) | null = null;
+	private pendingRewriteCommit: PendingRewriteCommit | null = null;
 
 	private readonly viewElem: HTMLElement;
 	private readonly controlsElem: HTMLElement;
@@ -1383,6 +1398,10 @@ class GitGraphView {
 						runAction({ command: 'dropCommit', repo: this.currentRepo, commitHash: hash }, 'Dropping Commit');
 					}, target);
 				}
+			}, {
+				title: tl('Edit Commit Message', '修改提交信息') + ELLIPSIS,
+				visible: this.canRewriteCommit(hash, commit),
+				onClick: () => this.requestRewriteCommit(target, commit)
 			}
 		], [
 			{
@@ -1422,6 +1441,159 @@ class GitGraphView {
 				}
 			}
 		]];
+	}
+
+	private canRewriteCommit(hash: string, commit: GG.GitCommit) {
+		if (hash === this.commitHead) {
+			return true;
+		}
+		if (commit.parents.length === 0) {
+			return false;
+		}
+		const index = this.commitLookup[hash];
+		return typeof index === 'number' && this.graph.dropCommitPossible(index);
+	}
+
+	private requestRewriteCommit(target: DialogTarget & CommitTarget, commit: GG.GitCommit) {
+		this.pendingRewriteCommit = { hash: commit.hash, target: target, defaults: null };
+		dialog.showActionRunning(tl('Loading Commit Message', '正在加载提交信息'));
+		sendMessage({ command: 'prepareRewriteCommit', repo: this.currentRepo, commitHash: commit.hash });
+	}
+
+	private showRewriteCommitForm(defaults: RewriteCommitFormValues) {
+		if (this.pendingRewriteCommit === null) return;
+
+		const normalisedMessage = defaults.message.replace(/\r\n|\r/g, '\n');
+		const rows = Math.max(6, Math.min(normalisedMessage.split('\n').length + 2, 18));
+		this.pendingRewriteCommit.defaults = {
+			message: normalisedMessage,
+			authorName: defaults.authorName,
+			authorEmail: defaults.authorEmail,
+			committerName: defaults.committerName,
+			committerEmail: defaults.committerEmail
+		};
+
+		const inputs: DialogInput[] = [
+			{
+				type: DialogInputType.Textarea,
+				name: tl('Commit Message', '提交信息'),
+				default: normalisedMessage,
+				placeholder: null,
+				rows: rows,
+				info: tl('这里填写完整的提交主题与正文，支持多行输入。', '这里填写完整的提交主题与正文，支持多行输入。')
+			},
+			{
+				type: DialogInputType.Text,
+				name: tl('Author Name', '作者名称'),
+				default: defaults.authorName,
+				placeholder: null,
+				info: tl('留空时沿用当前作者名称。', '留空时沿用当前作者名称。')
+			},
+			{
+				type: DialogInputType.Text,
+				name: tl('Author Email', '作者邮箱'),
+				default: defaults.authorEmail,
+				placeholder: null,
+				info: tl('留空时沿用当前作者邮箱。', '留空时沿用当前作者邮箱。')
+			},
+			{
+				type: DialogInputType.Text,
+				name: tl('Committer Name', '提交者名称'),
+				default: defaults.committerName,
+				placeholder: null,
+				info: tl('留空时沿用当前提交者名称。', '留空时沿用当前提交者名称。')
+			},
+			{
+				type: DialogInputType.Text,
+				name: tl('Committer Email', '提交者邮箱'),
+				default: defaults.committerEmail,
+				placeholder: null,
+				info: tl('留空时沿用当前提交者邮箱。', '留空时沿用当前提交者邮箱。')
+			}
+		];
+
+		dialog.showForm(
+			tl('Edit commit <b><i>' + abbrevCommit(this.pendingRewriteCommit.hash) + '</i></b>:', '修改提交 <b><i>' + abbrevCommit(this.pendingRewriteCommit.hash) + '</i></b>：'),
+			inputs,
+			tl('Apply Changes', '应用修改'),
+			(values) => this.submitRewriteCommit(values),
+			this.pendingRewriteCommit.target,
+			t('取消'),
+			() => { this.pendingRewriteCommit = null; },
+			true
+		);
+	}
+
+	private submitRewriteCommit(values: DialogInputValue[]) {
+		if (this.pendingRewriteCommit === null) return;
+
+		const rawMessage = (<string>values[0]).replace(/\r\n|\r/g, '\n');
+		const authorName = (<string>values[1]).trim();
+		const authorEmail = (<string>values[2]).trim();
+		const committerName = (<string>values[3]).trim();
+		const committerEmail = (<string>values[4]).trim();
+
+		const currentDefaults: RewriteCommitFormValues = {
+			message: rawMessage,
+			authorName: <string>values[1],
+			authorEmail: <string>values[2],
+			committerName: <string>values[3],
+			committerEmail: <string>values[4]
+		};
+		this.pendingRewriteCommit.defaults = currentDefaults;
+
+		if (rawMessage.trim() === '') {
+			showErrorMessage(tl('Commit message cannot be empty.', '提交信息不能为空。'));
+			this.showRewriteCommitForm(currentDefaults);
+			return;
+		}
+		if ((authorName === '') !== (authorEmail === '')) {
+			showErrorMessage(tl('Author name and email must both be filled or both left blank.', '作者名称与邮箱需同时填写或同时留空。'));
+			this.showRewriteCommitForm(currentDefaults);
+			return;
+		}
+		if ((committerName === '') !== (committerEmail === '')) {
+			showErrorMessage(tl('Committer name and email must both be filled or both left blank.', '提交者名称与邮箱需同时填写或同时留空。'));
+			this.showRewriteCommitForm(currentDefaults);
+			return;
+		}
+
+		const author = authorName !== '' && authorEmail !== ''
+			? { name: authorName, email: authorEmail }
+			: null;
+		const committer = committerName !== '' && committerEmail !== ''
+			? { name: committerName, email: committerEmail }
+			: null;
+
+		const payload: GG.RequestRewriteCommit = {
+			command: 'rewriteCommit',
+			repo: this.currentRepo,
+			commitHash: this.pendingRewriteCommit.hash,
+			message: rawMessage,
+			author: author,
+			committer: committer
+		};
+
+		this.pendingRewriteCommit = null;
+		runAction(payload, tl('Rewriting Commit', '正在修改提交'));
+	}
+
+	public handlePrepareRewriteCommit(msg: GG.ResponsePrepareRewriteCommit) {
+		if (this.pendingRewriteCommit === null || this.pendingRewriteCommit.hash !== msg.commitHash) {
+			return;
+		}
+		if (msg.error !== null) {
+			this.pendingRewriteCommit = null;
+			dialog.showError(tl('Unable to load commit message', '无法加载提交信息'), msg.error, null, null);
+			return;
+		}
+		this.showRewriteCommitForm({
+			message: msg.message,
+			authorName: msg.authorName,
+			authorEmail: msg.authorEmail,
+			committerName: msg.committerName,
+			committerEmail: msg.committerEmail
+		});
 	}
 
 	private showPushCommitDialog(target: DialogTarget & CommitTarget) {
@@ -3666,6 +3838,9 @@ window.addEventListener('load', () => {
 			case 'deleteUserDetails':
 				finishOrDisplayErrors(msg.errors, 'Unable to Remove Git User Details', () => gitGraph.requestLoadConfig(), true);
 				break;
+			case 'prepareRewriteCommit':
+				gitGraph.handlePrepareRewriteCommit(msg);
+				break;
 			case 'dropCommit':
 				refreshOrDisplayError(msg.error, 'Unable to Drop Commit');
 				break;
@@ -3718,6 +3893,9 @@ window.addEventListener('load', () => {
 				break;
 			case 'openFile':
 				finishOrDisplayError(msg.error, 'Unable to Open File');
+				break;
+			case 'rewriteCommit':
+				refreshOrDisplayError(msg.error, tl('Unable to Rewrite Commit', '无法修改提交'));
 				break;
 			case 'openTerminal':
 				finishOrDisplayError(msg.error, 'Unable to Open Terminal', true);

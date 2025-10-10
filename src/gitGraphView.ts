@@ -343,10 +343,43 @@ export class GitGraphView extends Disposable {
 					errors: errorInfos
 				});
 				break;
+			case 'prepareRewriteCommit':
+				try {
+					const details = await this.dataSource.prepareRewriteCommit(msg.repo, msg.commitHash);
+					this.sendMessage({
+						command: 'prepareRewriteCommit',
+						commitHash: msg.commitHash,
+						message: details.message,
+						authorName: details.authorName,
+						authorEmail: details.authorEmail,
+						committerName: details.committerName,
+						committerEmail: details.committerEmail,
+						error: null
+					});
+				} catch (error) {
+					const errorMessage = typeof error === 'string' ? error : (error instanceof Error ? error.message : 'Unable to load commit metadata.');
+					this.sendMessage({
+						command: 'prepareRewriteCommit',
+						commitHash: msg.commitHash,
+						message: '',
+						authorName: '',
+						authorEmail: '',
+						committerName: '',
+						committerEmail: '',
+						error: errorMessage
+					});
+				}
+				break;
 			case 'dropCommit':
 				this.sendMessage({
 					command: 'dropCommit',
 					error: await this.dataSource.dropCommit(msg.repo, msg.commitHash)
+				});
+				break;
+			case 'rewriteCommit':
+				this.sendMessage({
+					command: 'rewriteCommit',
+					error: await this.dataSource.rewriteCommit(msg.repo, msg.commitHash, msg.message, msg.author, msg.committer)
 				});
 				break;
 			case 'dropStash':

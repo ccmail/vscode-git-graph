@@ -299,6 +299,33 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 						refresh: msg.refresh
 					});
 					break;
+				case 'prepareRewriteCommit':
+					try {
+						const details = await this.dataSource.prepareRewriteCommit(msg.repo, msg.commitHash);
+						this.sendMessage({
+							command: 'prepareRewriteCommit',
+							commitHash: msg.commitHash,
+							message: details.message,
+							authorName: details.authorName,
+							authorEmail: details.authorEmail,
+							committerName: details.committerName,
+							committerEmail: details.committerEmail,
+							error: null
+						});
+					} catch (error) {
+						const errorMessage = typeof error === 'string' ? error : (error instanceof Error ? error.message : 'Unable to load commit metadata.');
+						this.sendMessage({
+							command: 'prepareRewriteCommit',
+							commitHash: msg.commitHash,
+							message: '',
+							authorName: '',
+							authorEmail: '',
+							committerName: '',
+							committerEmail: '',
+							error: errorMessage
+						});
+					}
+					break;
 				case 'copyFilePath':
 					this.sendMessage({ command: 'copyFilePath', error: await copyFilePathToClipboard(msg.repo, msg.filePath, msg.absolute) });
 					break;
@@ -338,6 +365,12 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 					break;
 				case 'viewScm':
 					await viewScm();
+					break;
+				case 'rewriteCommit':
+					this.sendMessage({
+						command: 'rewriteCommit',
+						error: await this.dataSource.rewriteCommit(msg.repo, msg.commitHash, msg.message, msg.author, msg.committer)
+					});
 					break;
 				case 'editUserDetails':
 					const errors = [
