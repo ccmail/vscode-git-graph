@@ -53,6 +53,8 @@ class PushCommitSession {
 	private resizeObserver: any = null;
 	private debounce: number | null = null;
 	private pending: { remote: string; branch: string; } | null = null;
+ 	private suppressFocusReveal: boolean = false;
+ 	private highlightedSuggestionIndex: number = -1;
 	private disposed: boolean = false;
 
 	constructor(view: GitGraphView, init: PushCommitSessionInit, hooks: PushCommitSessionHooks) {
@@ -120,7 +122,7 @@ class PushCommitSession {
 			this.commits = msg.commits;
 			this.files = msg.files;
 			this.updateBranchHint();
-			this.refreshSuggestions(true);
+			this.refreshSuggestions(true, this.isBranchInputFocused());
 			this.updateRange();
 		} else {
 			this.commits = [];
@@ -161,7 +163,7 @@ class PushCommitSession {
 			this.remoteBranchExists = this.doesRemoteBranchExist(this.remote, this.branch);
 			this.updateRange();
 			this.updateBranchHint();
-			this.refreshSuggestions(true);
+			this.refreshSuggestions(true, this.isBranchInputFocused());
 			this.schedulePreview();
 		});
 
@@ -171,10 +173,20 @@ class PushCommitSession {
 		const branchSuggestions = content.querySelector<HTMLElement>('#pushCommitBranchSuggestions')!;
 		branchInput.addEventListener('input', () => this.onBranchInput(branchInput));
 		branchInput.addEventListener('focus', () => {
-			this.refreshSuggestions(true);
-			this.showSuggestions();
+			if (this.suppressFocusReveal) {
+				this.suppressFocusReveal = false;
+				return;
+			}
+			this.refreshSuggestions(true, false);
+			if (this.elements !== null && this.elements.branchSuggestions.innerHTML !== '') {
+				this.showSuggestions();
+			}
 		});
 		branchInput.addEventListener('blur', () => window.setTimeout(() => this.hideSuggestions(), 120));
+		branchInput.addEventListener('keydown', (event) => {
+			event.stopPropagation();
+			this.onBranchKeyDown(event);
+		});
 		branchSuggestions.addEventListener('mousedown', (event) => this.onSuggestionClick(event));
 
 		const modeSelect = content.querySelector<HTMLSelectElement>('#pushCommitMode')!;
@@ -220,7 +232,8 @@ class PushCommitSession {
 		this.attachResizeObserver();
 		this.setActiveTab();
 		this.updateBranchHint();
-		this.refreshSuggestions(true);
+		this.refreshSuggestions(false, false);
+		this.hideSuggestions();
 		this.updateRange();
 		this.renderPreview();
 		this.updateConfirmEnabled();
@@ -294,9 +307,49 @@ class PushCommitSession {
 		this.updateConfirmEnabled();
 		this.updateRange();
 		this.updateBranchHint();
-		this.refreshSuggestions(true);
+		this.refreshSuggestions(true, false);
 		this.showSuggestions();
 		this.schedulePreview();
+	}
+
+	private onBranchKeyDown(event: KeyboardEvent) {
+		const elems = this.elements;
+		if (elems === null) return;
+		const suggestionsOpen = elems.branchSuggestions.classList.contains('visible');
+		switch (event.key) {
+			case 'ArrowDown':
+				if (!suggestionsOpen) {
+					this.refreshSuggestions(true, false);
+					if (elems.branchSuggestions.innerHTML === '') return;
+					this.showSuggestions();
+				}
+				event.preventDefault();
+				this.moveSuggestionHighlight(1);
+				break;
+			case 'ArrowUp':
+				if (suggestionsOpen) {
+					event.preventDefault();
+					this.moveSuggestionHighlight(-1);
+				}
+				break;
+			case 'Enter':
+				if (suggestionsOpen && this.highlightedSuggestionIndex >= 0) {
+					const items = this.getSuggestionElements();
+					if (this.highlightedSuggestionIndex < items.length) {
+						event.preventDefault();
+						const value = items[this.highlightedSuggestionIndex].dataset.value || '';
+						this.applyBranchSelection(value, true);
+					}
+				}
+				break;
+			case 'Escape':
+				if (suggestionsOpen) {
+					event.preventDefault();
+					this.hideSuggestions();
+					this.highlightSuggestion(-1);
+				}
+				break;
+		}
 	}
 
 	private onSuggestionClick(event: MouseEvent) {
@@ -306,10 +359,11 @@ class PushCommitSession {
 		this.applyBranchSelection(target.dataset.value || '');
 	}
 
-	private applyBranchSelection(branch: string) {
+	private applyBranchSelection(branch: string, suppressRefresh: boolean = false) {
 		this.branch = branch.trim();
 		if (this.elements !== null) {
 			this.elements.branchInput.value = this.branch;
+			this.suppressFocusReveal = true;
 			this.elements.branchInput.focus();
 			this.elements.branchInput.setSelectionRange(this.branch.length, this.branch.length);
 		}
@@ -318,7 +372,10 @@ class PushCommitSession {
 		this.updateRange();
 		this.updateBranchHint();
 		this.hideSuggestions();
-		this.schedulePreview();
+		this.highlightSuggestion(-1);
+		if (!suppressRefresh) {
+			this.schedulePreview();
+		}
 	}
 
 	private collectBranchOptions() {
@@ -348,7 +405,7 @@ class PushCommitSession {
 		return this.view.getBranches().includes('remotes/' + remote + '/' + branch);
 	}
 
-	private refreshSuggestions(showAll: boolean = false) {
+	private refreshSuggestions(showAll: boolean = false, reveal: boolean = true) {
 		const elems = this.elements;
 		if (elems === null) return;
 		const options = this.collectBranchOptions();
@@ -374,10 +431,15 @@ class PushCommitSession {
 			this.hideSuggestions();
 		} else {
 			elems.branchSuggestions.innerHTML = suggestions.join('');
-			if (showAll || query !== '' || limited.length > 0) {
+			if (reveal && (showAll || query !== '' || limited.length > 0)) {
 				this.showSuggestions();
 			}
 		}
+		this.highlightSuggestion(-1);
+	}
+
+	private isBranchInputFocused() {
+		return this.elements !== null && document.activeElement === this.elements.branchInput;
 	}
 
 	private showSuggestions() {
@@ -392,6 +454,40 @@ class PushCommitSession {
 		const elems = this.elements;
 		if (elems === null) return;
 		elems.branchSuggestions.classList.remove('visible');
+		this.highlightSuggestion(-1);
+	}
+
+	private getSuggestionElements(): HTMLElement[] {
+		const elems = this.elements;
+		if (elems === null) return [];
+		return Array.from(elems.branchSuggestions.querySelectorAll<HTMLElement>('.pushCommitSuggestion'));
+	}
+
+	private moveSuggestionHighlight(delta: number) {
+		const items = this.getSuggestionElements();
+		if (items.length === 0) {
+			this.highlightSuggestion(-1);
+			return;
+		}
+		let next = this.highlightedSuggestionIndex + delta;
+		if (next < 0) next = items.length - 1;
+		else if (next >= items.length) next = 0;
+		this.highlightSuggestion(next, items);
+	}
+
+	private highlightSuggestion(index: number, items: HTMLElement[] | null = null) {
+		const elements = this.elements;
+		if (elements === null) return;
+		const list = items || this.getSuggestionElements();
+		if (this.highlightedSuggestionIndex >= 0 && this.highlightedSuggestionIndex < list.length) {
+			list[this.highlightedSuggestionIndex].classList.remove('active');
+		}
+		this.highlightedSuggestionIndex = -1;
+		if (index >= 0 && index < list.length) {
+			list[index].classList.add('active');
+			list[index].scrollIntoView({ block: 'nearest' });
+			this.highlightedSuggestionIndex = index;
+		}
 	}
 
 	private schedulePreview() {
@@ -430,7 +526,11 @@ class PushCommitSession {
 
 		this.remoteBranchExists = this.doesRemoteBranchExist(this.remote, this.branch);
 		this.updateBranchHint();
-		this.refreshSuggestions(true);
+		const revealSuggestions = this.isBranchInputFocused();
+		this.refreshSuggestions(true, revealSuggestions && !this.previewError);
+		if (!revealSuggestions) {
+			this.highlightSuggestion(-1);
+		}
 		this.previewError = null;
 		this.pending = { remote: this.remote, branch: this.branch };
 		this.applyPreviewLoading(true);

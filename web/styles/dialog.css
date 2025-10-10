@@ -263,6 +263,11 @@ body.vscode-high-contrast .dialog{
 	color:var(--vscode-descriptionForeground);
 }
 
+.pushCommitSuggestion.active{
+	background-color:var(--vscode-list-activeSelectionBackground, rgba(128,128,128,0.3));
+	color:var(--vscode-list-activeSelectionForeground, var(--vscode-menu-foreground));
+}
+
 .pushCommitBranchHint{
 	min-height:16px;
 	font-size:12px;

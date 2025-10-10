@@ -540,16 +540,22 @@ export class DataSource extends Disposable {
 			this.getBranchesContainingCommit(repo, commitHash)
 		]);
 
+		let remoteHeadRef: string | null = null;
+		if (!remoteBranchExists) {
+			remoteHeadRef = await this.getRemoteHeadRef(repo, remote);
+		}
+
 		const commits = await this.getCommitsBetween(
 			repo,
-			remoteBranchExists ? remoteRef : null,
+			remoteBranchExists ? remoteRef : remoteHeadRef,
 			commitHash,
-			remoteBranchExists ? 100 : 1
+			100
 		);
 
-		const diffBase = remoteBranchExists
-			? remoteRef
-			: await this.getCommitParentHash(repo, commitHash) || EMPTY_TREE_HASH;
+		let diffBase = remoteBranchExists ? remoteRef : remoteHeadRef;
+		if (diffBase === null) {
+			diffBase = await this.getCommitParentHash(repo, commitHash) || EMPTY_TREE_HASH;
+		}
 		const diffRecords = await this.getDiffNameStatus(repo, diffBase, commitHash);
 
 		const files: PushCommitPreviewFileChange[] = diffRecords.map((record) => ({
@@ -1586,6 +1592,14 @@ export class DataSource extends Disposable {
 			if (!line) return null;
 			const hashes = line.split(' ');
 			return hashes.length > 1 ? hashes[1] : null;
+		}).catch(() => null);
+	}
+
+	private getRemoteHeadRef(repo: string, remote: string) {
+		const ref = 'refs/remotes/' + remote + '/HEAD';
+		return this.spawnGit(['symbolic-ref', '--quiet', ref], repo, (stdout) => {
+			const value = stdout.trim();
+			return value !== '' ? value : null;
 		}).catch(() => null);
 	}
 
