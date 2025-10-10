@@ -114,6 +114,14 @@ class Config {
 	}
 
 	/**
+	 * Get the push commit view mode (modal | dock).
+	 */
+	get pushCommitViewMode(): 'modal' | 'dock' {
+		const mode = this.config.get<string>('pushCommit.viewMode', 'Docked');
+		return mode === 'Modal' ? 'modal' : 'dock';
+	}
+
+	/**
 	 * Get the Commit Details View configuration from the Extension Settings.
 	 */
 	get commitDetailsView(): CommitDetailsViewConfig {

@@ -44,8 +44,15 @@ class GitGraphView {
 	private readonly findWidget: FindWidget;
 	private readonly settingsWidget: SettingsWidget;
 	private readonly branchesWidget: BranchesWidget;
+	private readonly pushCommitWidget: PushCommitWidget;
 	private readonly repoDropdown: Dropdown;
 	private readonly branchDropdown: Dropdown;
+	private pushCommitSession: PushCommitSession | null = null;
+	private readonly pushCommitDialogSizeStorageKey = 'gitGraph.pushCommitDialogSize';
+	private pushCommitDialogSize = { width: 420, height: 520 };
+
+	private pushCommitRecentBranches: string[] = [];
+	private restoreDialogClose: (() => void) | null = null;
 
 	private readonly viewElem: HTMLElement;
 	private readonly controlsElem: HTMLElement;
@@ -59,6 +66,21 @@ class GitGraphView {
 	constructor(viewElem: HTMLElement, prevState: WebViewState | null) {
 		this.gitRepos = initialState.repos;
 		this.config = initialState.config;
+		try {
+			const savedSize = window.localStorage.getItem(this.pushCommitDialogSizeStorageKey);
+			if (savedSize) {
+				const parsed = JSON.parse(savedSize);
+				if (parsed && typeof parsed.width === 'number' && typeof parsed.height === 'number') {
+					this.pushCommitDialogSize = {
+						width: Math.max(360, Math.min(parsed.width, window.innerWidth || 1920)),
+						height: Math.max(380, Math.min(parsed.height, window.innerHeight || 1080))
+					};
+				}
+			}
+		} catch (error) {
+			// Ignore storage errors
+		}
+
 		this.maxCommits = this.config.initialLoadCommits;
 		this.viewElem = viewElem;
 		this.currentRepoRefreshState = {
@@ -118,6 +140,7 @@ class GitGraphView {
 		this.findWidget = new FindWidget(this);
 		this.settingsWidget = new SettingsWidget(this);
 		this.branchesWidget = new BranchesWidget(this);
+		this.pushCommitWidget = new PushCommitWidget(this);
 
 		alterClass(document.body, CLASS_BRANCH_LABELS_ALIGNED_TO_GRAPH, this.config.referenceLabels.branchLabelsAlignedToGraph);
 		alterClass(document.body, CLASS_TAG_LABELS_RIGHT_ALIGNED, this.config.referenceLabels.tagLabelsOnRight);
@@ -173,6 +196,7 @@ class GitGraphView {
 		settingsBtn.addEventListener('click', () => {
 			// 打开设置前，确保分支面板被关闭（两者共用右侧 Dock）
 			if (this.branchesWidget.isVisible()) this.branchesWidget.close();
+			if (this.pushCommitWidget.isVisible()) this.pushCommitWidget.close();
 			if (this.settingsWidget.isVisible()) this.settingsWidget.close();
 			else this.settingsWidget.show(this.currentRepo);
 		});
@@ -193,6 +217,7 @@ class GitGraphView {
 			branchesBtn.addEventListener('click', () => {
 				// 互斥：与“仓库设置”互斥占位
 				if (this.settingsWidget.isVisible()) this.settingsWidget.close();
+				if (this.pushCommitWidget.isVisible()) this.pushCommitWidget.close();
 				if (this.branchesWidget.isVisible()) this.branchesWidget.close();
 				else this.branchesWidget.show(this.currentRepo);
 			});
@@ -598,6 +623,10 @@ class GitGraphView {
 		if (this.branchesWidget.isVisible()) this.branchesWidget.close();
 	}
 
+	public closeSettingsWidget() {
+		if (this.settingsWidget.isVisible()) this.settingsWidget.close();
+	}
+
 	public applyBranchSelection(selection: ReadonlyArray<string>) {
 		this.currentBranches = selection as string[];
 		this.maxCommits = this.config.initialLoadCommits;
@@ -634,6 +663,14 @@ class GitGraphView {
 		return this.commits;
 	}
 
+	public getCurrentRepoPath(): string {
+		return this.currentRepo;
+	}
+
+	public getRemotes(): ReadonlyArray<string> {
+		return this.gitRemotes;
+	}
+
 	private getPushRemote(branch: string | null = null) {
 		const possibleRemotes = [];
 		if (this.gitConfig !== null) {
@@ -648,6 +685,10 @@ class GitGraphView {
 
 	public getRepoConfig(): Readonly<GG.GitRepoConfig> | null {
 		return this.gitConfig;
+	}
+
+	public getCurrentBranchHead(): string | null {
+		return this.gitBranchHead;
 	}
 
 	public getRepoState(repo: string): Readonly<GG.GitRepoState> | null {
@@ -1251,6 +1292,10 @@ class GitGraphView {
 				title: tl('Create Branch', '创建分支(branch)') + ELLIPSIS,
 				visible: visibility.createBranch,
 				onClick: () => this.createBranchAction(hash, '', this.config.dialogDefaults.createBranch.checkout, target)
+			}, {
+				title: tl('Push Commit (include selected commit)', '推送此前提交(含选中commit)') + ELLIPSIS,
+				visible: this.gitRemotes.length > 0,
+				onClick: () => this.showPushCommitDialog(target)
 			}
 		], [
 			{
@@ -1379,6 +1424,187 @@ class GitGraphView {
 		]];
 	}
 
+	private showPushCommitDialog(target: DialogTarget & CommitTarget) {
+		const initial = this.preparePushCommitInitialState(target);
+		if (initial === null) return;
+
+		if (this.getPreferredPushCommitMode() === 'dock') {
+			this.pushCommitWidget.show(target, initial);
+			return;
+		}
+		this.openPushCommitModal(target, initial);
+	}
+
+	private preparePushCommitInitialState(target: DialogTarget & CommitTarget): PushCommitInitialState | null {
+		if (this.gitRemotes.length === 0) {
+			dialog.showError(tl('Unable to Push Commit', '无法推送提交'), tl('No remotes are configured for this repository.', '当前仓库未配置任何远程。'), null, null);
+			return null;
+		}
+		const commitIndex = this.getCommitId(target.hash);
+		if (commitIndex === null) return null;
+
+		const commit = this.commits[commitIndex];
+		let branch = '';
+		for (let i = 0; i < commit.heads.length; i++) {
+			if (!commit.heads[i].includes('/')) {
+				branch = commit.heads[i];
+				break;
+			}
+		}
+		if (branch === '' && this.gitBranchHead !== null) {
+			branch = this.gitBranchHead;
+		}
+
+		const remote = this.getPushRemote(branch) || this.gitRemotes[0];
+		return { branch: branch, remote: remote };
+	}
+
+	private getPreferredPushCommitMode(): 'modal' | 'dock' {
+		return this.config.pushCommitViewMode === 'dock' ? 'dock' : 'modal';
+	}
+
+	private openPushCommitModal(target: DialogTarget & CommitTarget, initial: PushCommitInitialState) {
+		this.disposePushCommitSession();
+
+		dialog.showForm('<div id="pushCommitDialogRoot"></div>', [], tl('Push', '推送'), () => {
+			this.confirmPushCommitAction();
+		}, target, t('取消'), () => {
+			this.disposePushCommitSession();
+		}, false);
+
+		const container = document.getElementById('pushCommitDialogRoot');
+		if (container === null) return;
+		const tableElem = container.nextElementSibling;
+		if (tableElem !== null) tableElem.remove();
+
+		if (this.restoreDialogClose !== null) {
+			this.restoreDialogClose();
+		}
+		const originalDialogClose = dialog.close.bind(dialog);
+		this.restoreDialogClose = () => {
+			dialog.close = originalDialogClose;
+		};
+		dialog.close = () => {
+			this.disposePushCommitSession();
+			originalDialogClose();
+		};
+
+		const hooks: PushCommitSessionHooks = {
+			mode: 'modal',
+			container: container,
+			initialSize: { ...this.pushCommitDialogSize },
+			onSizeChange: (size) => this.updatePushCommitDialogSize(size),
+			setConfirmEnabled: (enabled) => {
+				const dialogElem = (<any>dialog).elem as HTMLElement | null;
+				if (dialogElem !== null) {
+					alterClass(dialogElem, CLASS_DIALOG_NO_INPUT, !enabled);
+				}
+			},
+			onDisposed: () => {
+				this.pushCommitSession = null;
+			}
+		};
+
+		this.initializePushCommitSession(target, initial, hooks);
+	}
+
+	private initializePushCommitSession(target: DialogTarget & CommitTarget, initial: PushCommitInitialState, hooks: PushCommitSessionHooks) {
+		this.pushCommitSession = new PushCommitSession(this, {
+			repo: this.currentRepo,
+			commitHash: target.hash,
+			currentBranch: this.gitBranchHead,
+			initialRemote: initial.remote,
+			initialBranch: initial.branch,
+			initialMode: GG.GitPushBranchMode.Normal
+		}, hooks);
+
+		this.pushCommitSession.mount();
+	}
+
+	private confirmPushCommitAction(): boolean {
+		if (this.pushCommitSession === null) return false;
+		const payload = this.pushCommitSession.confirm();
+		if (payload === null) return false;
+		this.disposePushCommitSession();
+		runAction(payload, tl('Pushing Commit', '正在推送提交'));
+		return true;
+	}
+
+	public confirmPushCommit(): boolean {
+		return this.confirmPushCommitAction();
+	}
+
+	public cancelPushCommitSession() {
+		this.disposePushCommitSession();
+	}
+
+	public startPushCommitDockSession(target: DialogTarget & CommitTarget, initial: PushCommitInitialState, container: HTMLElement, setConfirmEnabled: (enabled: boolean) => void, onDisposed: () => void) {
+		const hooks: PushCommitSessionHooks = {
+			mode: 'dock',
+			container: container,
+			setConfirmEnabled: setConfirmEnabled,
+			onDisposed: () => {
+				this.pushCommitSession = null;
+				onDisposed();
+			}
+		};
+		this.initializePushCommitSession(target, initial, hooks);
+	}
+
+	private disposePushCommitSession() {
+		if (this.pushCommitSession !== null) {
+			this.pushCommitSession.dispose();
+			this.pushCommitSession = null;
+		}
+		if (this.pushCommitWidget.isVisible()) {
+			this.pushCommitWidget.close(true);
+		}
+		if (this.restoreDialogClose !== null) {
+			const restore = this.restoreDialogClose;
+			this.restoreDialogClose = null;
+			restore();
+		}
+	}
+
+	private updatePushCommitDialogSize(size: { width: number; height: number; }) {
+		this.pushCommitDialogSize = {
+			width: size.width,
+			height: size.height
+		};
+		this.storePushCommitDialogSize();
+	}
+
+	private storePushCommitDialogSize() {
+		try {
+			window.localStorage.setItem(this.pushCommitDialogSizeStorageKey, JSON.stringify(this.pushCommitDialogSize));
+		} catch (error) {
+			// Ignore storage errors
+		}
+	}
+
+	public handlePushCommitPreview(msg: GG.ResponsePushCommitPreview) {
+		if (this.pushCommitSession === null) return;
+		this.pushCommitSession.handlePreviewResponse(msg);
+	}
+
+	public recordPushCommitRecentBranch(branch: string) {
+		const trimmed = branch.trim();
+		if (trimmed === '') return;
+		const updated = this.pushCommitRecentBranches.slice();
+		const existingIndex = updated.indexOf(trimmed);
+		if (existingIndex !== -1) {
+			updated.splice(existingIndex, 1);
+		}
+		updated.unshift(trimmed);
+		if (updated.length > 8) {
+			updated.length = 8;
+		}
+		this.pushCommitRecentBranches.splice(0, this.pushCommitRecentBranches.length, ...updated);
+	}
+
+	public getPushCommitRecentBranches(): ReadonlyArray<string> {
+		return this.pushCommitRecentBranches;
+	}
 	private getRemoteBranchContextMenuActions(remote: string, target: DialogTarget & RefTarget): ContextMenuActions {
 		const refName = target.ref, visibility = this.config.contextMenuActionsVisibility.remoteBranch;
 		const branchName = remote !== '' ? refName.substring(remote.length + 1) : '';
@@ -3504,6 +3730,12 @@ window.addEventListener('load', () => {
 				break;
 			case 'pullBranch':
 				refreshOrDisplayError(msg.error, 'Unable to Pull Branch');
+				break;
+			case 'pushCommitPreview':
+				gitGraph.handlePushCommitPreview(msg);
+				break;
+			case 'pushCommitToBranch':
+				refreshAndDisplayErrors(msg.errors, 'Unable to Push Commit');
 				break;
 			case 'pushBranch':
 				refreshAndDisplayErrors(msg.errors, 'Unable to Push Branch', msg.willUpdateBranchConfig);

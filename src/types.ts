@@ -73,6 +73,20 @@ export interface GitFileChange {
 	readonly deletions: number | null;
 }
 
+export interface PushCommitPreviewCommit {
+	readonly hash: string;
+	readonly author: string;
+	readonly email: string;
+	readonly date: number;
+	readonly message: string;
+}
+
+export interface PushCommitPreviewFileChange {
+	readonly type: GitFileStatus;
+	readonly oldFilePath: string | null;
+	readonly newFilePath: string;
+}
+
 export const enum GitFileStatus {
 	Added = 'A',
 	Modified = 'M',
@@ -258,6 +272,7 @@ export interface GitGraphViewConfig {
 	readonly panelControlsPosition?: 'top' | 'left' | 'right';
 	readonly panelControlsCompact?: boolean;
 	readonly panelSettingsWidgetMode?: 'floating' | 'docked';
+	readonly pushCommitViewMode?: 'modal' | 'dock';
 	readonly mute: MuteCommitsConfig;
 	readonly onlyFollowFirstParent: boolean;
 	readonly onRepoLoad: OnRepoLoadConfig;
@@ -1067,6 +1082,40 @@ export interface ResponsePushBranch extends ResponseWithMultiErrorInfo {
 	readonly willUpdateBranchConfig: boolean;
 }
 
+export interface RequestPushCommitPreview extends RepoRequest {
+	readonly command: 'pushCommitPreview';
+	readonly commitHash: string;
+	readonly remote: string;
+	readonly branch: string;
+	readonly currentBranch: string | null;
+}
+export interface ResponsePushCommitPreview extends ResponseWithErrorInfo {
+	readonly command: 'pushCommitPreview';
+	readonly repo: string;
+	readonly commitHash: string;
+	readonly remote: string;
+	readonly branch: string;
+	readonly remoteBranchExists: boolean;
+	readonly branchCandidates: ReadonlyArray<string>;
+	readonly commits: ReadonlyArray<PushCommitPreviewCommit>;
+	readonly files: ReadonlyArray<PushCommitPreviewFileChange>;
+}
+
+export interface RequestPushCommitToBranch extends RepoRequest {
+	readonly command: 'pushCommitToBranch';
+	readonly commitHash: string;
+	readonly remote: string;
+	readonly branch: string;
+	readonly mode: GitPushBranchMode;
+}
+export interface ResponsePushCommitToBranch extends ResponseWithMultiErrorInfo {
+	readonly command: 'pushCommitToBranch';
+	readonly repo: string;
+	readonly commitHash: string;
+	readonly remote: string;
+	readonly branch: string;
+}
+
 export interface RequestPushStash extends RepoRequest {
 	readonly command: 'pushStash';
 	readonly message: string;
@@ -1297,6 +1346,8 @@ export type RequestMessage =
 	| RequestPruneRemote
 	| RequestPullBranch
 	| RequestPushBranch
+	| RequestPushCommitPreview
+	| RequestPushCommitToBranch
 	| RequestPushStash
 	| RequestPushTag
 	| RequestRebase
@@ -1360,6 +1411,8 @@ export type ResponseMessage =
 	| ResponsePruneRemote
 	| ResponsePullBranch
 	| ResponsePushBranch
+	| ResponsePushCommitPreview
+	| ResponsePushCommitToBranch
 	| ResponsePushStash
 	| ResponsePushTag
 	| ResponseRebase

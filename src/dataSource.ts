@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { AskpassEnvironment, AskpassManager } from './askpass/askpassManager';
 import { getConfig } from './config';
 import { Logger } from './logger';
-import { CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, RebaseActionOn, SquashMessageFormat, TagType, Writeable } from './types';
+import { CommitOrdering, DateType, DeepWriteable, ErrorInfo, ErrorInfoExtensionPrefix, GitCommit, GitCommitDetails, GitCommitStash, GitConfigLocation, GitFileChange, GitFileStatus, GitPushBranchMode, GitRepoConfig, GitRepoConfigBranches, GitResetMode, GitSignature, GitSignatureStatus, GitStash, GitTagDetails, MergeActionOn, PushCommitPreviewCommit, PushCommitPreviewFileChange, RebaseActionOn, SquashMessageFormat, TagType, Writeable } from './types';
 import { GitExecutable, GitVersionRequirement, UNABLE_TO_FIND_GIT_MSG, UNCOMMITTED, abbrevCommit, constructIncompatibleGitVersionMessage, doesVersionMeetRequirement, getPathFromStr, getPathFromUri, openGitTerminal, pathWithTrailingSlash, realpath, resolveSpawnOutput, showErrorMessage } from './utils';
 import { Disposable } from './utils/disposable';
 import { Event } from './utils/event';
@@ -16,6 +16,7 @@ const EOL_REGEX = /\r\n|\r|\n/g;
 const INVALID_BRANCH_REGEXP = /^\(.* .*\)$/;
 const REMOTE_HEAD_BRANCH_REGEXP = /^remotes\/.*\/HEAD$/;
 const GIT_LOG_SEPARATOR = 'XX7Nal-YARtTpjCikii9nJxER19D6diSyk-AWkPb';
+const EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 export const enum GitConfigKey {
 	DiffGuiTool = 'diff.guitool',
@@ -436,6 +437,35 @@ export class DataSource extends Disposable {
 	}
 
 	/**
+	 * Get the commits reachable from `toRef` that are not reachable from `fromRef`.
+	 * @param repo The path of the repository.
+	 * @param fromRef The base ref (nullable when the base does not exist).
+	 * @param toRef The target ref.
+	 * @param maxCount The maximum number of commits to return (default 50).
+	 * @returns A list of commits in chronological order.
+	 */
+	public getCommitsBetween(repo: string, fromRef: string | null, toRef: string, maxCount: number = 50): Promise<PushCommitPreviewCommit[]> {
+		const range = fromRef !== null ? fromRef + '..' + toRef : toRef;
+		const args = ['-c', 'log.showSignature=false', 'log', '--max-count=' + maxCount, '--format=' + this.gitFormatLog, '--date-order', range, '--'];
+		return this.spawnGit(args, repo, (stdout) => {
+			const lines = stdout.split(EOL_REGEX);
+			const commits: PushCommitPreviewCommit[] = [];
+			for (let i = 0; i < lines.length - 1; i++) {
+				const line = lines[i].split(GIT_LOG_SEPARATOR);
+				if (line.length !== 6) continue;
+				commits.push({
+					hash: line[0],
+					author: line[2],
+					email: line[3],
+					date: parseInt(line[4]),
+					message: line[5]
+				});
+			}
+			return commits;
+		}).catch(() => []);
+	}
+
+	/**
 	 * Get the contents of a file at a specific revision.
 	 * @param repo The path of the repository.
 	 * @param commitHash The commit hash specifying the revision of the file.
@@ -488,6 +518,52 @@ export class DataSource extends Disposable {
 			const renamedRecordForFile = renamed.find((record) => record.oldFilePath === oldFilePath);
 			return renamedRecordForFile ? renamedRecordForFile.newFilePath : null;
 		}).catch(() => null);
+	}
+
+	/**
+	 * Get the preview data for pushing a commit to a remote branch.
+	 * @param repo The path of the repository.
+	 * @param commitHash The commit hash that will be pushed.
+	 * @param remote The remote name.
+	 * @param branch The remote branch name.
+	 * @returns Preview data containing commits, files, and branch hints.
+	 */
+	public async getPushCommitPreview(repo: string, commitHash: string, remote: string, branch: string): Promise<{
+		remoteBranchExists: boolean;
+		branchCandidates: string[];
+		commits: PushCommitPreviewCommit[];
+		files: PushCommitPreviewFileChange[];
+	}> {
+		const remoteRef = 'refs/remotes/' + remote + '/' + branch;
+		const [remoteBranchExists, branchCandidates] = await Promise.all([
+			this.doesRefExist(repo, remoteRef),
+			this.getBranchesContainingCommit(repo, commitHash)
+		]);
+
+		const commits = await this.getCommitsBetween(
+			repo,
+			remoteBranchExists ? remoteRef : null,
+			commitHash,
+			remoteBranchExists ? 100 : 1
+		);
+
+		const diffBase = remoteBranchExists
+			? remoteRef
+			: await this.getCommitParentHash(repo, commitHash) || EMPTY_TREE_HASH;
+		const diffRecords = await this.getDiffNameStatus(repo, diffBase, commitHash);
+
+		const files: PushCommitPreviewFileChange[] = diffRecords.map((record) => ({
+			type: record.type,
+			oldFilePath: record.type === GitFileStatus.Added ? null : record.oldFilePath,
+			newFilePath: record.newFilePath
+		}));
+
+		return {
+			remoteBranchExists: remoteBranchExists,
+			branchCandidates: unique(branchCandidates),
+			commits: commits,
+			files: files
+		};
 	}
 
 	/**
@@ -800,6 +876,24 @@ export class DataSource extends Disposable {
 			if (result !== null) break;
 		}
 		return results;
+	}
+
+	/**
+	 * Push a specific commit to a remote branch (updating the branch head to this commit).
+	 * @param repo The path of the repository.
+	 * @param commitHash The commit hash to push.
+	 * @param remote The remote to push the commit to.
+	 * @param branch The target branch name on the remote.
+	 * @param mode The push mode.
+	 * @returns The ErrorInfo from the executed command.
+	 */
+	public pushCommitToBranch(repo: string, commitHash: string, remote: string, branch: string, mode: GitPushBranchMode) {
+		const args = ['push'];
+		if (mode !== GitPushBranchMode.Normal) {
+			args.push('--' + mode);
+		}
+		args.push(remote, commitHash + ':refs/heads/' + branch);
+		return this.runGitCommand(args, repo);
 	}
 
 	/**
@@ -1482,6 +1576,19 @@ export class DataSource extends Disposable {
 		});
 	}
 
+	private doesRefExist(repo: string, ref: string) {
+		return this._spawnGit(['show-ref', '--verify', '--quiet', ref], repo, () => true).then(() => true).catch(() => false);
+	}
+
+	private getCommitParentHash(repo: string, commitHash: string) {
+		return this.spawnGit(['rev-list', '--parents', '-n', '1', commitHash], repo, (stdout) => {
+			const line = stdout.split(EOL_REGEX)[0];
+			if (!line) return null;
+			const hashes = line.split(' ');
+			return hashes.length > 1 ? hashes[1] : null;
+		}).catch(() => null);
+	}
+
 	/**
 	 * Get the raw commits in a repository.
 	 * @param repo The path of the repository.
@@ -1604,6 +1711,20 @@ export class DataSource extends Disposable {
 				return branchNames.some((branchName) => branchName.startsWith(knownRemotePrefix));
 			});
 		});
+	}
+
+	/**
+	 * Get the local branches that contain the specified commit hash.
+	 * @param repo The path of the repository.
+	 * @param commitHash The commit hash to test.
+	 * @returns A promise resolving to a list of branch names.
+	 */
+	public getBranchesContainingCommit(repo: string, commitHash: string) {
+		return this.spawnGit(['branch', '--contains', commitHash, '--format=%(refname:short)'], repo, (stdout) => {
+			return stdout.split(EOL_REGEX)
+				.map((line) => line.trim())
+				.filter((line) => line !== '' && !line.startsWith('remotes/') && !INVALID_BRANCH_REGEXP.test(line));
+		}).catch(() => []);
 	}
 
 	/**

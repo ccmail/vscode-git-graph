@@ -81,8 +81,10 @@ body.controlsSideRight #content,
 body.controlsSideRight #footer{ margin-right:calc(var(--gg-side-toolbar-width) + 20px); }
 /* When settings are docked & open, reserve additional width for the dock */
 body.settingsDocked.dockOpen.controlsSideRight #content,
-body.settingsDocked.dockOpen.controlsSideRight #footer{
-    margin-right:calc(var(--gg-side-toolbar-width) + var(--gg-docked-settings-width, 360px) + 20px);
+body.settingsDocked.dockOpen.controlsSideRight #footer,
+body.pushCommitDocked.dockOpen.controlsSideRight #content,
+body.pushCommitDocked.dockOpen.controlsSideRight #footer{
+	margin-right:calc(var(--gg-side-toolbar-width) + var(--gg-docked-settings-width, 360px) + 20px);
 }
 body.controlsSideRight #repoControl,
 body.controlsSideRight #branchControl,
@@ -148,8 +150,10 @@ body.controlsSideLeft #controls{
 body.controlsSideLeft #content,
 body.controlsSideLeft #footer{ margin-left:calc(var(--gg-side-toolbar-width) + 20px); }
 body.settingsDocked.dockOpen.controlsSideLeft #content,
-body.settingsDocked.dockOpen.controlsSideLeft #footer{
-    margin-left:calc(var(--gg-side-toolbar-width) + var(--gg-docked-settings-width, 360px) + 20px);
+body.settingsDocked.dockOpen.controlsSideLeft #footer,
+body.pushCommitDocked.dockOpen.controlsSideLeft #content,
+body.pushCommitDocked.dockOpen.controlsSideLeft #footer{
+	margin-left:calc(var(--gg-side-toolbar-width) + var(--gg-docked-settings-width, 360px) + 20px);
 }
 body.controlsSideLeft #repoControl,
 body.controlsSideLeft #branchControl,

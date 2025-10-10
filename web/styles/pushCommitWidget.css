@@ -1,0 +1,119 @@
+#pushCommitWidget{
+	display:flex;
+	flex-direction:column;
+	position:fixed;
+	top:-240px;
+	right:28px;
+	width:var(--gg-docked-settings-width, 360px);
+	min-height:200px;
+	padding:0 10px 10px 10px;
+	z-index:31;
+	background-color:var(--vscode-editorWidget-background);
+	box-shadow:0 2px 8px var(--vscode-widget-shadow);
+	line-height:17px;
+	font-size:13px;
+	color:var(--vscode-editorSuggestWidget-foreground);
+	fill:var(--vscode-editorSuggestWidget-foreground);
+	fill-opacity:0.7;
+	user-select:none;
+	overflow:hidden;
+}
+#pushCommitWidget.active{
+	top:0;
+}
+#pushCommitWidget.transition{
+	transition:top .2s linear;
+}
+
+body.controlsSideRight #pushCommitWidget{ right:80px; }
+body.controlsSideLeft #pushCommitWidget{ left:80px; right:auto; }
+
+body.settingsDocked #pushCommitWidget,
+body.pushCommitDocked #pushCommitWidget{
+	top:-158px;
+	bottom:auto;
+	max-height:90vh;
+}
+body.settingsDocked #pushCommitWidget.active,
+body.pushCommitDocked #pushCommitWidget.active{
+	top:0;
+	bottom:0;
+	max-height:none;
+	right:var(--gg-side-toolbar-width);
+	padding-bottom:0;
+}
+body.controlsSideLeft.settingsDocked #pushCommitWidget.active,
+body.controlsSideLeft.pushCommitDocked #pushCommitWidget.active{
+	left:var(--gg-side-toolbar-width);
+	right:auto;
+}
+body.settingsDocked #pushCommitWidget.transition,
+body.pushCommitDocked #pushCommitWidget.transition{
+	transition:none;
+}
+
+#pushCommitWidget h2{
+	margin:8px 10px;
+	padding:0;
+	font-size:16px;
+	line-height:24px;
+	text-align:center;
+}
+
+#pushCommitWidgetClose{
+	position:absolute;
+	top:8px;
+	right:12px;
+	width:16px;
+	height:16px;
+	cursor:pointer;
+	fill:currentColor;
+	opacity:0.6;
+}
+#pushCommitWidgetClose:hover{
+	opacity:1;
+}
+
+.pushCommitDockContent{
+	flex:1;
+	overflow:auto;
+	padding:0 2px 8px 2px;
+}
+.pushCommitDockFooter{
+	display:flex;
+	justify-content:flex-end;
+	gap:8px;
+	padding:8px 2px 12px 2px;
+	border-top:1px solid rgba(128,128,128,0.2);
+}
+#pushCommitWidget:not(.active){
+	display:none !important;
+	/* 防御性：即便被其它规则覆盖，也始终在可视区域之外且不响应事件 */
+	top:-320px !important;
+	opacity:0;
+	pointer-events:none;
+}
+.pushCommitDockFooter .roundedBtn.primary{
+	background-color:var(--vscode-button-background);
+	color:var(--vscode-button-foreground);
+	border:1px solid transparent;
+}
+.pushCommitDockFooter .roundedBtn.primary:hover:not([disabled]){
+	background-color:var(--vscode-button-hoverBackground);
+}
+.pushCommitDockFooter .roundedBtn.primary[disabled]{
+	opacity:0.45;
+	cursor:default;
+}
+.pushCommitDockFooter .roundedBtn{
+	min-width:80px;
+}
+
+body.settingsDocked #pushCommitWidget .pushCommitDockContent,
+body.pushCommitDocked #pushCommitWidget .pushCommitDockContent{
+	padding:0 6px 10px 6px;
+}
+body.settingsDocked #pushCommitWidget .pushCommitDockFooter,
+body.pushCommitDocked #pushCommitWidget .pushCommitDockFooter{
+	padding:10px 6px 12px 6px;
+}

@@ -346,12 +346,16 @@ class Dialog {
 		this.elem = dialog;
 		document.body.appendChild(dialog);
 
-		let docHeight = document.body.clientHeight, dialogHeight = dialog.clientHeight + 2;
-		if (type !== DialogType.Form && dialogHeight > 0.8 * docHeight) {
-			dialogContent.style.height = Math.round(0.8 * docHeight - 22) + 'px';
-			dialogHeight = Math.round(0.8 * docHeight);
+		const viewportHeight = window.innerHeight || document.body.clientHeight;
+		let dialogHeight = dialog.clientHeight + 2;
+		const maxDialogHeight = Math.round(Math.min(viewportHeight * 0.9, dialogHeight));
+		if (type !== DialogType.Form && dialogHeight > maxDialogHeight) {
+			dialogContent.style.height = Math.max(maxDialogHeight - 22, 160) + 'px';
+			dialogHeight = maxDialogHeight;
 		}
-		dialog.style.top = Math.max(Math.round((docHeight - dialogHeight) / 2), 10) + 'px';
+		dialog.style.top = Math.round(viewportHeight / 2) + 'px';
+		dialog.style.left = '50%';
+		dialog.style.transform = 'translate(-50%, -50%)';
 		if (actionName !== null && actioned !== null) {
 			document.getElementById('dialogAction')!.addEventListener('click', actioned);
 			this.actioned = actioned;

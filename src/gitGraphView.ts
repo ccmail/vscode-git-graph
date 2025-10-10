@@ -500,6 +500,47 @@ export class GitGraphView extends Disposable {
 					error: await this.dataSource.pullBranch(msg.repo, msg.branchName, msg.remote, msg.createNewCommit, msg.squash)
 				});
 				break;
+			case 'pushCommitPreview':
+				try {
+					const preview = await this.dataSource.getPushCommitPreview(msg.repo, msg.commitHash, msg.remote, msg.branch);
+					this.sendMessage({
+						command: 'pushCommitPreview',
+						repo: msg.repo,
+						commitHash: msg.commitHash,
+						remote: msg.remote,
+						branch: msg.branch,
+						remoteBranchExists: preview.remoteBranchExists,
+						branchCandidates: preview.branchCandidates,
+						commits: preview.commits,
+						files: preview.files,
+						error: null
+					});
+				} catch (error) {
+					const message = typeof error === 'string' ? error : (error instanceof Error ? error.message : 'An unexpected error occurred while generating the push preview.');
+					this.sendMessage({
+						command: 'pushCommitPreview',
+						repo: msg.repo,
+						commitHash: msg.commitHash,
+						remote: msg.remote,
+						branch: msg.branch,
+						remoteBranchExists: false,
+						branchCandidates: [],
+						commits: [],
+						files: [],
+						error: message
+					});
+				}
+				break;
+			case 'pushCommitToBranch':
+				this.sendMessage({
+					command: 'pushCommitToBranch',
+					repo: msg.repo,
+					commitHash: msg.commitHash,
+					remote: msg.remote,
+					branch: msg.branch,
+					errors: [await this.dataSource.pushCommitToBranch(msg.repo, msg.commitHash, msg.remote, msg.branch, msg.mode)]
+				});
+				break;
 			case 'pushBranch':
 				this.sendMessage({
 					command: 'pushBranch',
@@ -689,6 +730,7 @@ export class GitGraphView extends Disposable {
 				panelControlsPosition: config.panelControlsPosition,
 				panelControlsCompact: config.panelControlsCompact,
 				panelSettingsWidgetMode: config.panelSettingsWidgetMode,
+				pushCommitViewMode: config.pushCommitViewMode,
 				mute: config.muteCommits,
 				onlyFollowFirstParent: config.onlyFollowFirstParent,
 				onRepoLoad: config.onRepoLoad,

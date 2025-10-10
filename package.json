@@ -158,6 +158,19 @@
           "default": "Floating",
           "description": "%setting.panel.settingsWidgetMode.description%"
         },
+        "git-graph.pushCommit.viewMode": {
+          "type": "string",
+          "enum": [
+            "Docked",
+            "Modal"
+          ],
+          "enumDescriptions": [
+            "%setting.pushCommit.viewMode.enum.dock%",
+            "%setting.pushCommit.viewMode.enum.modal%"
+          ],
+          "default": "Docked",
+          "description": "%setting.pushCommit.viewMode.description%"
+        },
         "git-graph.viewLocation": {
           "type": "string",
           "enum": [

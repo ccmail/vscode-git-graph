@@ -15,6 +15,8 @@ declare global {
 
 	type Config = GG.GitGraphViewConfig;
 
+	type PushCommitInitialState = { readonly branch: string; readonly remote: string; };
+
 	const initialState: GG.GitGraphViewInitialState;
 	const globalState: GG.DeepReadonly<GG.GitGraphViewGlobalState>;
 	const workspaceState: GG.DeepReadonly<GG.GitGraphViewWorkspaceState>;
