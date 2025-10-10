@@ -240,8 +240,17 @@ body.controlsSideLeft #controls.fetchSupported{
 	pointer-events:all;
 }
 #commitGraph circle.current{
-	fill:var(--vscode-editor-background);
+	fill:transparent;
 	stroke-width:2;
+}
+#commitGraph circle.currentInner{
+	fill:var(--vscode-editor-background);
+	pointer-events:none;
+}
+#commitGraph circle.uncommittedInner{
+	stroke:none;
+	fill:var(--vscode-editor-background);
+	pointer-events:none;
 }
 #commitGraph circle:not(.current){
 	stroke:var(--vscode-editor-background);
@@ -862,10 +871,14 @@ body.vscode-high-contrast #commitTable tr.commit.findCurrentCommit{
 .gitRef > svg{
 	background-color:var(--git-graph-color);
 	fill:var(--vscode-editor-background);
-	width:14px;
-	height:14px;
+	width:18px;
+	height:18px;
 	padding:2px;
+	box-sizing:border-box;
 	vertical-align:top;
+}
+.gitRef svg + .gitRefName{
+	border-left:1px solid rgba(0,0,0,0.25);
 }
 
 .gitRefName, .gitRefHeadRemote{

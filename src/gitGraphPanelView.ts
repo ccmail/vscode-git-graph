@@ -320,6 +320,18 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 						errors: await this.dataSource.createBranch(msg.repo, msg.branchName, msg.commitHash, msg.checkout, msg.force)
 					});
 					break;
+				case 'fetchIntoLocalBranch':
+					this.sendMessage({
+						command: 'fetchIntoLocalBranch',
+						error: await this.dataSource.fetchIntoLocalBranch(msg.repo, msg.remote, msg.remoteBranch, msg.localBranch, msg.force)
+					});
+					break;
+				case 'pullBranch':
+					this.sendMessage({
+						command: 'pullBranch',
+						error: await this.dataSource.pullBranch(msg.repo, msg.branchName, msg.remote, msg.createNewCommit, msg.squash)
+					});
+					break;
 				case 'rebase':
 					this.sendMessage({
 						command: 'rebase',

@@ -299,21 +299,48 @@ class Vertex {
 		if (this.onBranch === null) return;
 
 		const colour = this.isCommitted ? config.colours[this.onBranch.getColour() % config.colours.length] : '#808080';
-		const cx = (this.x * config.grid.x + config.grid.offsetX).toString();
-		const cy = (this.id * config.grid.y + config.grid.offsetY + (expandOffset ? config.grid.expandY : 0)).toString();
+		const cxNum = this.x * config.grid.x + config.grid.offsetX;
+		const cyNum = this.id * config.grid.y + config.grid.offsetY + (expandOffset ? config.grid.expandY : 0);
+		const cx = cxNum.toString();
+		const cy = cyNum.toString();
 
 		const circle = document.createElementNS(SVG_NAMESPACE, 'circle');
 		circle.dataset.id = this.id.toString();
 		circle.setAttribute('cx', cx);
 		circle.setAttribute('cy', cy);
-		circle.setAttribute('r', '4');
+		const radius = this.isCurrent ? 5 : 4;
+		circle.setAttribute('r', radius.toString());
 		if (this.isCurrent) {
 			circle.setAttribute('class', 'current');
 			circle.setAttribute('stroke', colour);
 		} else {
-			circle.setAttribute('fill', colour);
+			circle.setAttribute('fill', this.isCommitted ? colour : '#1f88f5');
 		}
 		svg.appendChild(circle);
+
+		if (this.isCurrent) {
+			// 仅描边的空心圆，内部透明，由 mask 负责隐藏线；不再叠加任何遮挡线
+		} else if (!this.isCommitted) {
+			const innerCircle = document.createElementNS(SVG_NAMESPACE, 'circle');
+			innerCircle.setAttribute('cx', cx);
+			innerCircle.setAttribute('cy', cy);
+			innerCircle.setAttribute('r', Math.max(radius - 0.6, 0).toString());
+			innerCircle.setAttribute('class', 'uncommittedInner');
+			innerCircle.setAttribute('fill', 'transparent');
+			innerCircle.setAttribute('pointer-events', 'none');
+			svg.appendChild(innerCircle);
+
+			const lineMask = document.createElementNS(SVG_NAMESPACE, 'line');
+			lineMask.setAttribute('x1', cx);
+			lineMask.setAttribute('y1', (cyNum - radius).toString());
+			lineMask.setAttribute('x2', cx);
+			lineMask.setAttribute('y2', (cyNum + radius).toString());
+			lineMask.setAttribute('stroke', 'var(--vscode-editor-background)');
+			lineMask.setAttribute('stroke-width', '4');
+			lineMask.setAttribute('stroke-linecap', 'round');
+			lineMask.setAttribute('pointer-events', 'none');
+			svg.appendChild(lineMask);
+		}
 
 		if (this.isStash && !this.isCurrent) {
 			circle.setAttribute('r', '4.5');
@@ -380,6 +407,7 @@ class Graph {
 
 		let mask = defs.appendChild(document.createElementNS(SVG_NAMESPACE, 'mask'));
 		mask.setAttribute('id', 'GraphMask');
+		mask.setAttribute('maskContentUnits', 'userSpaceOnUse');
 		this.maskRect = mask.appendChild(document.createElementNS(SVG_NAMESPACE, 'rect'));
 		this.maskRect.setAttribute('fill', 'url(#GraphGradient)');
 
@@ -441,21 +469,44 @@ class Graph {
 
 	public render(expandedCommit: ExpandedCommit | null) {
 		this.expandedCommitIndex = expandedCommit !== null ? expandedCommit.index : -1;
-		let group = document.createElementNS(SVG_NAMESPACE, 'g'), i, contentWidth = this.getContentWidth();
-		group.setAttribute('mask', 'url(#GraphMask)');
+		let branchesGroup = document.createElementNS(SVG_NAMESPACE, 'g'), verticesGroup = document.createElementNS(SVG_NAMESPACE, 'g'), i, contentWidth = this.getContentWidth();
+		branchesGroup.setAttribute('mask', 'url(#GraphMask)');
+
+		// 更新 Mask：为未提交节点添加"黑色圆洞"，让分支线在该处不可见
+		const maskElem = <SVGElement>this.maskRect.parentNode;
+		while (maskElem.lastChild && maskElem.lastChild !== this.maskRect) {
+			maskElem.removeChild(maskElem.lastChild);
+		}
+		for (i = 0; i < this.vertices.length; i++) {
+			if (!this.vertices[i].getIsCommitted()) {
+				const p = this.vertices[i].getPoint();
+				const cx = p.x * this.config.grid.x + this.config.grid.offsetX;
+				let cy = p.y * this.config.grid.y + this.config.grid.offsetY;
+				if (this.expandedCommitIndex > -1 && i > this.expandedCommitIndex) cy += this.config.grid.expandY;
+				const hole = document.createElementNS(SVG_NAMESPACE, 'circle');
+				hole.setAttribute('cx', cx.toString());
+				hole.setAttribute('cy', cy.toString());
+				hole.setAttribute('r', '4.6'); // 比内径略大，彻底挖空
+				hole.setAttribute('fill', 'black'); // 在 mask 中，黑色=不可见
+				maskElem.appendChild(hole);
+			}
+		}
 
 		for (i = 0; i < this.branches.length; i++) {
-			this.branches[i].draw(group, this.config, this.expandedCommitIndex);
+			this.branches[i].draw(branchesGroup, this.config, this.expandedCommitIndex);
 		}
 
 		const overListener = (e: MouseEvent) => this.vertexOver(e), outListener = (e: MouseEvent) => this.vertexOut(e);
 		for (i = 0; i < this.vertices.length; i++) {
-			this.vertices[i].draw(group, this.config, expandedCommit !== null && i > expandedCommit.index, overListener, outListener);
+			this.vertices[i].draw(verticesGroup, this.config, expandedCommit !== null && i > expandedCommit.index, overListener, outListener);
 		}
 
 		if (this.group !== null) this.svg.removeChild(this.group);
-		this.svg.appendChild(group);
-		this.group = group;
+		let container = document.createElementNS(SVG_NAMESPACE, 'g');
+		container.appendChild(branchesGroup);
+		container.appendChild(verticesGroup);
+		this.svg.appendChild(container);
+		this.group = container;
 		this.setDimensions(contentWidth, this.getHeight(expandedCommit));
 		this.applyMaxWidth(contentWidth);
 		this.closeTooltip();
