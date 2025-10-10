@@ -299,6 +299,35 @@ export class GitGraphPanelViewProvider extends Disposable implements vscode.Webv
 						refresh: msg.refresh
 					});
 					break;
+				case 'addTag': {
+					let errors = [await this.dataSource.addTag(msg.repo, msg.tagName, msg.commitHash, msg.type, msg.message, msg.force)];
+					if (errors[0] === null && msg.pushToRemote !== null) {
+						errors = errors.concat(await this.dataSource.pushTag(msg.repo, msg.tagName, [msg.pushToRemote], msg.commitHash, msg.pushSkipRemoteCheck));
+					}
+					this.sendMessage({
+						command: 'addTag',
+						repo: msg.repo,
+						tagName: msg.tagName,
+						pushToRemote: msg.pushToRemote,
+						commitHash: msg.commitHash,
+						errors
+					});
+					break;
+				}
+				case 'createBranch':
+					this.sendMessage({
+						command: 'createBranch',
+						errors: await this.dataSource.createBranch(msg.repo, msg.branchName, msg.commitHash, msg.checkout, msg.force)
+					});
+					break;
+				case 'rebase':
+					this.sendMessage({
+						command: 'rebase',
+						actionOn: msg.actionOn,
+						interactive: msg.interactive,
+						error: await this.dataSource.rebase(msg.repo, msg.obj, msg.actionOn, msg.ignoreDate, msg.interactive)
+					});
+					break;
 				case 'prepareRewriteCommit':
 					try {
 						const details = await this.dataSource.prepareRewriteCommit(msg.repo, msg.commitHash);

@@ -2102,27 +2102,44 @@ class GitGraphView {
 			}
 		}
 		const mostRecentTags = mostRecentTagsIndex > -1 ? this.commits[mostRecentTagsIndex].tags.map((tag) => '"' + tag.name + '"') : [];
+		const mostRecentTagsInfo = mostRecentTags.length > 0
+			? tl(
+				'The most recent tag' + (mostRecentTags.length > 1 ? 's' : '') + ' in the loaded commits ' + (mostRecentTags.length > 1 ? 'are' : 'is') + ' ' + formatCommaSeparatedList(mostRecentTags) + '.',
+				'最近加载的标签：' + formatCommaSeparatedList(mostRecentTags) + '。'
+			)
+			: undefined;
 
 		const inputs: DialogInput[] = [
-			{ type: DialogInputType.TextRef, name: 'Name', default: initialName, info: mostRecentTags.length > 0 ? 'The most recent tag' + (mostRecentTags.length > 1 ? 's' : '') + ' in the loaded commits ' + (mostRecentTags.length > 1 ? 'are' : 'is') + ' ' + formatCommaSeparatedList(mostRecentTags) + '.' : undefined },
-			{ type: DialogInputType.Select, name: 'Type', default: initialType === GG.TagType.Annotated ? 'annotated' : 'lightweight', options: [{ name: 'Annotated', value: 'annotated' }, { name: 'Lightweight', value: 'lightweight' }] },
-			{ type: DialogInputType.Text, name: 'Message', default: initialMessage, placeholder: 'Optional', info: 'A message can only be added to an annotated tag.' }
+			{ type: DialogInputType.TextRef, name: tl('Name', '名称'), default: initialName, info: mostRecentTagsInfo },
+			{ type: DialogInputType.Select, name: tl('Type', '类型'), default: initialType === GG.TagType.Annotated ? 'annotated' : 'lightweight', options: [{ name: tl('Annotated', '附注标签'), value: 'annotated' }, { name: tl('Lightweight', '轻量标签'), value: 'lightweight' }] },
+			{ type: DialogInputType.Text, name: tl('Message', '标签说明'), default: initialMessage, placeholder: tl('Optional', '可选'), info: tl('A message can only be added to an annotated tag.', '只有附注标签才能填写说明。') }
 		];
 		if (this.gitRemotes.length > 1) {
-			const options = [{ name: 'Don\'t push', value: '-1' }];
+			const options = [{ name: tl('Don\'t push', '不推送'), value: '-1' }];
 			this.gitRemotes.forEach((remote, i) => options.push({ name: remote, value: i.toString() }));
 			const defaultOption = initialPushToRemote !== null
 				? this.gitRemotes.indexOf(initialPushToRemote)
 				: isInitialLoad && this.config.dialogDefaults.addTag.pushToRemote
 					? this.gitRemotes.indexOf(this.getPushRemote())
 					: -1;
-			inputs.push({ type: DialogInputType.Select, name: 'Push to remote', options: options, default: defaultOption.toString(), info: 'Once this tag has been added, push it to this remote.' });
+			inputs.push({
+				type: DialogInputType.Select,
+				name: tl('Push to remote', '推送到远程'),
+				options: options,
+				default: defaultOption.toString(),
+				info: tl('Once this tag has been added, push it to this remote.', '创建标签后立即推送到该远程。')
+			});
 		} else if (this.gitRemotes.length === 1) {
 			const defaultValue = initialPushToRemote !== null || (isInitialLoad && this.config.dialogDefaults.addTag.pushToRemote);
-			inputs.push({ type: DialogInputType.Checkbox, name: 'Push to remote', value: defaultValue, info: 'Once this tag has been added, push it to the repositories remote.' });
+			inputs.push({
+				type: DialogInputType.Checkbox,
+				name: tl('Push to remote', '推送到远程'),
+				value: defaultValue,
+				info: tl('Once this tag has been added, push it to the repositories remote.', '创建标签后立即推送到仓库的远程。')
+			});
 		}
 
-		dialog.showForm('Add tag to commit <b><i>' + abbrevCommit(hash) + '</i></b>:', inputs, 'Add Tag', (values) => {
+		dialog.showForm(tl('Add tag to commit <b><i>' + abbrevCommit(hash) + '</i></b>:', '向提交 <b><i>' + abbrevCommit(hash) + '</i></b> 添加标签：'), inputs, tl('Add Tag', '添加标签'), (values) => {
 			const tagName = <string>values[0];
 			const type = <string>values[1] === 'annotated' ? GG.TagType.Annotated : GG.TagType.Lightweight;
 			const message = <string>values[2];
@@ -2143,15 +2160,22 @@ class GitGraphView {
 					pushToRemote: pushToRemote,
 					pushSkipRemoteCheck: globalState.pushTagSkipRemoteCheck,
 					force: force
-				}, 'Adding Tag');
+				}, tl('Adding Tag', '正在添加标签'));
 			};
 
 			if (this.gitTags.includes(tagName)) {
-				dialog.showTwoButtons('A tag named <b><i>' + escapeHtml(tagName) + '</i></b> already exists, do you want to replace it with this new tag?', 'Yes, replace the existing tag', () => {
-					runAddTagAction(true);
-				}, 'No, choose another tag name', () => {
-					this.addTagAction(hash, tagName, type, message, pushToRemote, target, false);
-				}, target);
+				dialog.showTwoButtons(
+					tl('A tag named <b><i>' + escapeHtml(tagName) + '</i></b> already exists, do you want to replace it with this new tag?', '标签 <b><i>' + escapeHtml(tagName) + '</i></b> 已存在，要用新标签替换吗？'),
+					tl('Yes, replace the existing tag', '是，替换现有标签'),
+					() => {
+						runAddTagAction(true);
+					},
+					tl('No, choose another tag name', '否，重新命名标签'),
+					() => {
+						this.addTagAction(hash, tagName, type, message, pushToRemote, target, false);
+					},
+					target
+				);
 			} else {
 				runAddTagAction(false);
 			}
@@ -2227,12 +2251,24 @@ class GitGraphView {
 	}
 
 	private rebaseAction(obj: string, name: string, actionOn: GG.RebaseActionOn, target: DialogTarget & (CommitTarget | RefTarget)) {
-		dialog.showForm('Are you sure you want to rebase ' + (this.gitBranchHead !== null ? '<b><i>' + escapeHtml(this.gitBranchHead) + '</i></b> (the current branch)' : 'the current branch') + ' on ' + actionOn.toLowerCase() + ' <b><i>' + escapeHtml(name) + '</i></b>?', [
-			{ type: DialogInputType.Checkbox, name: 'Launch Interactive Rebase in new Terminal', value: this.config.dialogDefaults.rebase.interactive },
-			{ type: DialogInputType.Checkbox, name: 'Ignore Date', value: this.config.dialogDefaults.rebase.ignoreDate, info: 'Only applicable to a non-interactive rebase.' }
-		], 'Yes, rebase', (values) => {
-			let interactive = <boolean>values[0];
-			runAction({ command: 'rebase', repo: this.currentRepo, obj: obj, actionOn: actionOn, ignoreDate: <boolean>values[1], interactive: interactive }, interactive ? 'Launching Interactive Rebase' : 'Rebasing on ' + actionOn);
+		const currentBranchTextEn = this.gitBranchHead !== null ? '<b><i>' + escapeHtml(this.gitBranchHead) + '</i></b> (the current branch)' : 'the current branch';
+		const currentBranchTextZh = this.gitBranchHead !== null ? '<b><i>' + escapeHtml(this.gitBranchHead) + '</i></b>（当前分支）' : '当前分支';
+		const targetTypeEn = actionOn === GG.RebaseActionOn.Branch ? 'branch' : 'commit';
+		const targetTypeZh = actionOn === GG.RebaseActionOn.Branch ? '分支' : '提交';
+		const message = tl(
+			'Are you sure you want to rebase ' + currentBranchTextEn + ' on ' + targetTypeEn + ' <b><i>' + escapeHtml(name) + '</i></b>?',
+			'确定要将 ' + currentBranchTextZh + ' 变基到' + targetTypeZh + ' <b><i>' + escapeHtml(name) + '</i></b> 吗？'
+		);
+
+		dialog.showForm(message, [
+			{ type: DialogInputType.Checkbox, name: tl('Launch Interactive Rebase in new Terminal', '在新终端中启动交互式变基'), value: this.config.dialogDefaults.rebase.interactive },
+			{ type: DialogInputType.Checkbox, name: tl('Ignore Date', '忽略提交日期'), value: this.config.dialogDefaults.rebase.ignoreDate, info: tl('Only applicable to a non-interactive rebase.', '仅适用于非交互式变基。') }
+		], tl('Yes, rebase', '是，执行变基'), (values) => {
+			const interactive = <boolean>values[0];
+			const actionDescription = interactive
+				? tl('Launching Interactive Rebase', '正在启动交互式变基')
+				: tl('Rebasing on ' + targetTypeEn + ' ' + name, '正在变基到' + targetTypeZh + ' ' + name);
+			runAction({ command: 'rebase', repo: this.currentRepo, obj: obj, actionOn: actionOn, ignoreDate: <boolean>values[1], interactive: interactive }, actionDescription);
 		}, target);
 	}
 
@@ -3928,7 +3964,7 @@ window.addEventListener('load', () => {
 					refreshAndDisplayErrors(msg.errors, 'Unable to Push Tag');
 				}
 				break;
-			case 'rebase':
+			case 'rebase': {
 				if (msg.error === null) {
 					if (msg.interactive) {
 						dialog.closeActionRunning();
@@ -3936,9 +3972,13 @@ window.addEventListener('load', () => {
 						gitGraph.refresh(false);
 					}
 				} else {
-					dialog.showError('Unable to Rebase current branch on ' + msg.actionOn, msg.error, null, null);
+					const isBranch = msg.actionOn === GG.RebaseActionOn.Branch;
+					const actionLabelEn = isBranch ? 'branch' : 'commit';
+					const actionLabelZh = isBranch ? '分支' : '提交';
+					dialog.showError(tl('Unable to Rebase current branch on ' + actionLabelEn, '无法将当前分支变基到' + actionLabelZh), msg.error, null, null);
 				}
 				break;
+			}
 			case 'refresh':
 				gitGraph.refresh(false);
 				break;
